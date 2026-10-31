@@ -57,12 +57,12 @@ export function renderLogin(container) {
 
   lucide.createIcons();
 
-  document.getElementById('toggleSenha').onclick = function() {
+  document.getElementById('toggleSenha').onclick = function () {
     const inp = document.getElementById('senha');
     inp.type = inp.type === 'password' ? 'text' : 'password';
   };
 
-  document.getElementById('loginForm').onsubmit = async function(e) {
+  document.getElementById('loginForm').onsubmit = async function (e) {
     e.preventDefault();
     const email = document.getElementById('email').value;
     const senha = document.getElementById('senha').value;
@@ -158,7 +158,7 @@ export function renderCadastro(container) {
 
   let tipoAtual = 'escola';
   document.querySelectorAll('.tab[data-tipo]').forEach(tab => {
-    tab.onclick = function() {
+    tab.onclick = function () {
       document.querySelectorAll('.tab[data-tipo]').forEach(t => t.classList.remove('active'));
       this.classList.add('active');
       tipoAtual = this.dataset.tipo;
@@ -168,7 +168,7 @@ export function renderCadastro(container) {
     };
   });
 
-  document.getElementById('cadastroForm').onsubmit = function(e) {
+  document.getElementById('cadastroForm').onsubmit = async function (e) {
     e.preventDefault();
     const errEl = document.getElementById('cadastroError');
     const nome = document.getElementById('c-nome').value.trim();
@@ -183,8 +183,8 @@ export function renderCadastro(container) {
     }
 
     const escolaId = document.getElementById('c-escolaId')?.value?.trim() || null;
-    const turmaId  = document.getElementById('c-turmaId')?.value?.trim() || null;
-    const cnpj     = document.getElementById('c-cnpj')?.value?.trim() || '';
+    const turmaId = document.getElementById('c-turmaId')?.value?.trim() || null;
+    const cnpj = document.getElementById('c-cnpj')?.value?.trim() || '';
 
     const res = Auth.registrar({
       nome, email, senha, tipo: tipoAtual,
