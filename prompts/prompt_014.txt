@@ -1,0 +1,10 @@
+Prepare o projeto para deploy em produção (Railway/Render, um único serviço Node servindo frontend + API, SQLite em volume persistente):
+
+1. Criar .gitignore (node_modules, *.db, .env) e remover o .db do versionamento.
+2. Garantir que o servidor crie a pasta do banco se não existir e que respeite DB_PATH e PORT. Adicionar rota GET /health.
+3. Exigir JWT_SECRET em produção (falhar ao iniciar se NODE_ENV=production e a variável não estiver definida; remover o fallback 'edumetrics-dev-secret').
+4. Trocar o hash de senha SHA-256 por bcrypt (ou argon2), migrando seed e login.
+5. Restringir o CORS, ou removê-lo, já que front e API compartilham origem.
+6. Fixar a versão do lucide no index.html.
+7. Atualizar o README com a seção "Deploy" (variáveis de ambiente, build/start command, como rodar o seed em produção).
+8. Testar localmente com NODE_ENV=production e confirmar login e dashboards funcionando antes de me avisar que terminou.
