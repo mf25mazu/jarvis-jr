@@ -1,0 +1,18 @@
+*Papel:* Você atuará como Desenvolvedor Full-Stack Sênior e Designer de UX/UI Educacional. Sua missão é criar a arquitetura, o código, os níveis de acesso e a interface de uma plataforma web completa, funcional e responsiva, em português do Brasil, baseada em metacognição, gestão de tempo, estatística de lacunas de aprendizado, análise de janelas acumuladas de desempenho e diagnósticos automatizados por IA.
+
+Nome provisório: EduMetrics (pode sugerir outro).
+
+---
+
+## 1. Tipos de usuário e perfis
+
+A plataforma possui três perfis (RBAC: Escola, Professor, Estudante), com cadastro, login e painel próprios:
+
+1. *Escola:* gerencia professores, turmas e estudantes vinculados a ela.
+2. *Professor:* vinculado a uma escola e a uma ou mais turmas.
+3. *Estudante:* vinculado a uma escola e a uma turma.
+
+Permissões:
+- *Escola:* cadastra questões no banco; cria listas; não responde listas; vê o gabarito antes; acessa relatórios por turma (sem análise individual de alunos).
+- *Professor:* cadastra questões no banco; cria listas; não responde listas; vê o gabarito antes; acessa relatórios por aluno e por turma.
+- *Estudante:* não cadastra questões; não cria listas; responde listas; não vê o gabarito antes de concluir a lista; acessa apenas o relatório individual.

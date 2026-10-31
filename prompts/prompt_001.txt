@@ -1,0 +1,1 @@
+exporte todos os prompts que eu te enviar para o diretorio prompts/ em formato .txt

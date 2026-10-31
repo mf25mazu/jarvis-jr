@@ -1,0 +1,1 @@
+crie um site em javascript que faça uma análise de notas e gere um relatorio sobre
