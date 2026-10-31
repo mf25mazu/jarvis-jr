@@ -1,6 +1,7 @@
 // seed.js — Popula o banco SQLite com dados de exemplo
-import { db, migrate } from './migrations.js';
-import { uuid, now, queries, run, get, all } from './models/index.js';
+import { migrate } from './migrations.js';
+import { db } from './models/db.js';
+import { uuid, now, queries, get, all } from './models/index.js';
 import crypto from 'crypto';
 
 const SCHOOL = { id: uuid(), name: 'Escola Modelo EduMetrics' };
@@ -83,7 +84,6 @@ function simulateResponse(difficulty, studentSkill) {
   const isCorrect = roll > 0.15 + (1 - successChance);
   let errorCategory = null;
   if (!isCorrect) {
-    // tendência baseada em perfil
     errorCategory = pick(ERROR_CATEGORIES);
   }
   const perceivedDifficulty = isCorrect ? randomInt(Math.max(1, difficulty - 1), difficulty + 1) : randomInt(difficulty, Math.min(5, difficulty + 2));
@@ -92,114 +92,110 @@ function simulateResponse(difficulty, studentSkill) {
   return { completionStatus: 'FIZ', isCorrect, errorCategory, perceivedDifficulty, timeSpentSeconds };
 }
 
-function main() {
-  migrate();
+async function main() {
+  await migrate();
   console.log('Schema aplicado.');
 
   // Limpar dados anteriores
-  db.exec(`DELETE FROM submissions; DELETE FROM assignment_questions; DELETE FROM assignment_sessions;
+  await db.exec(`DELETE FROM submissions; DELETE FROM assignment_questions; DELETE FROM assignment_sessions;
            DELETE FROM assignments; DELETE FROM questions; DELETE FROM class_students; DELETE FROM class_teachers;
            DELETE FROM classes; DELETE FROM subjects; DELETE FROM grade_years; DELETE FROM users; DELETE FROM schools;`);
 
   // Escola
-  queries.schools.create(SCHOOL);
+  await queries.schools.create(SCHOOL);
   console.log('Escola:', SCHOOL.name);
 
   // Ano/Série
-  db.prepare('INSERT INTO grade_years (id, school_id, name, level) VALUES (?, ?, ?, ?)')
-    .run(GRADE_YEAR.id, SCHOOL.id, GRADE_YEAR.name, GRADE_YEAR.level);
+  await db.run('INSERT INTO grade_years (id, school_id, name, level) VALUES (?, ?, ?, ?)',
+    [GRADE_YEAR.id, SCHOOL.id, GRADE_YEAR.name, GRADE_YEAR.level]);
 
   // Disciplinas
-  SUBJECTS.forEach(s => queries.subjects.create({ ...s, schoolId: SCHOOL.id }));
+  for (const s of SUBJECTS) await queries.subjects.create({ ...s, schoolId: SCHOOL.id });
 
   // Professores
-  TEACHERS.forEach(t => {
-    queries.users.create({ id: t.id, schoolId: SCHOOL.id, name: t.name, email: t.email, passwordHash: hash(t.password), role: 'TEACHER' });
+  for (const t of TEACHERS) {
+    await queries.users.create({ id: t.id, schoolId: SCHOOL.id, name: t.name, email: t.email, passwordHash: hash(t.password), role: 'TEACHER' });
     console.log('Professor:', t.email);
-  });
+  }
 
   // Turmas
-  CLASSES.forEach((c, i) => {
-    queries.classes.create({ id: c.id, schoolId: SCHOOL.id, gradeYearId: GRADE_YEAR.id, name: c.name });
-    // Vincula professor
-    db.prepare('INSERT INTO class_teachers (class_id, teacher_id, subject_id) VALUES (?, ?, ?)')
-      .run(c.id, TEACHERS[i % TEACHERS.length].id, SUBJECTS[0].id);
+  for (let i = 0; i < CLASSES.length; i++) {
+    const c = CLASSES[i];
+    await queries.classes.create({ id: c.id, schoolId: SCHOOL.id, gradeYearId: GRADE_YEAR.id, name: c.name });
+    await db.run('INSERT INTO class_teachers (class_id, teacher_id, subject_id) VALUES (?, ?, ?)',
+      [c.id, TEACHERS[i % TEACHERS.length].id, SUBJECTS[0].id]);
     console.log('Turma:', c.name);
-  });
+  }
 
   // Estudantes
-  STUDENTS.forEach(s => {
-    const email = `aluno${s.turma * 4 + STUDENTS.indexOf(s) + 1}@edumetrics.local`;
-    queries.users.create({ id: s.id, schoolId: SCHOOL.id, name: s.name, email, passwordHash: hash('aluno123'), role: 'STUDENT' });
-    db.prepare('INSERT INTO class_students (class_id, student_id) VALUES (?, ?)')
-      .run(CLASSES[s.turma].id, s.id);
-  });
+  for (const s of STUDENTS) {
+    const email = `aluno${STUDENTS.indexOf(s) + 1}@edumetrics.local`;
+    await queries.users.create({ id: s.id, schoolId: SCHOOL.id, name: s.name, email, passwordHash: hash('aluno123'), role: 'STUDENT' });
+    await db.run('INSERT INTO class_students (class_id, student_id) VALUES (?, ?)', [CLASSES[s.turma].id, s.id]);
+  }
   console.log('8 estudantes criados.');
 
   // Questões
   const questions = [];
-  QUESTIONS_MAT.forEach((q, i) => {
+  for (const q of QUESTIONS_MAT) {
     const id = uuid();
-    queries.questions.create({
+    await queries.questions.create({
       id, schoolId: SCHOOL.id, subjectId: SUBJECTS[0].id, statement: q.statement,
       answerKey: '', expectedDifficulty: q.expected_difficulty,
       expectedTimeSeconds: q.expected_time_seconds, questionType: 'multiple_choice',
       createdBy: TEACHERS[0].id,
     });
     questions.push({ id, subjectId: SUBJECTS[0].id, ...q });
-  });
-  QUESTIONS_LP.forEach((q, i) => {
+  }
+  for (const q of QUESTIONS_LP) {
     const id = uuid();
-    queries.questions.create({
+    await queries.questions.create({
       id, schoolId: SCHOOL.id, subjectId: SUBJECTS[1].id, statement: q.statement,
       answerKey: '', expectedDifficulty: q.expected_difficulty,
       expectedTimeSeconds: q.expected_time_seconds, questionType: 'multiple_choice',
       createdBy: TEACHERS[1].id,
     });
     questions.push({ id, subjectId: SUBJECTS[1].id, ...q });
-  });
+  }
   console.log(`${questions.length} questões criadas.`);
 
-  // Listas: 12 por turma, alternando matéria, para ter janelas 3/5/10
+  // Listas: 12 por turma
   const assignments = [];
-  CLASSES.forEach(c => {
+  for (const c of CLASSES) {
     for (let i = 1; i <= 12; i++) {
       const subject = i % 2 === 1 ? SUBJECTS[0] : SUBJECTS[1];
       const assignmentId = uuid();
       const title = `Lista ${i} — ${subject.name}`;
-      queries.assignments.create({
+      await queries.assignments.create({
         id: assignmentId, title, subjectId: subject.id, classId: c.id,
-        createdBy: TEACHERS[c === CLASSES[0] ? 0 : 1].id, status: 'published', dueDate: null,
+        createdBy: TEACHERS[CLASSES.indexOf(c) % TEACHERS.length].id, status: 'published', dueDate: null,
       });
-      // Escolhe 5 questões da matéria
       const pool = questions.filter(q => q.subjectId === subject.id);
       const selected = [];
       while (selected.length < 5 && selected.length < pool.length) {
         const q = pick(pool);
         if (!selected.includes(q.id)) selected.push(q.id);
       }
-      selected.forEach((qid, idx) => {
-        queries.assignments.linkQuestion({ assignmentId, questionId: qid, itemOrder: idx });
-      });
+      for (let idx = 0; idx < selected.length; idx++) {
+        await queries.assignments.linkQuestion({ assignmentId, questionId: selected[idx], itemOrder: idx });
+      }
       assignments.push({ id: assignmentId, classId: c.id, subjectId: subject.id, questionIds: selected });
     }
-  });
+  }
   console.log(`${assignments.length} listas criadas.`);
 
   // Submissões
-  // Cada estudante responde listas da sua turma com desempenho variado
-  STUDENTS.forEach((s, idx) => {
+  for (const s of STUDENTS) {
     const classId = CLASSES[s.turma].id;
     const classAssignments = assignments.filter(a => a.classId === classId);
-    // Habilidade do estudante: entre 0.3 e 0.85
     const skill = 0.35 + Math.random() * 0.5;
-    classAssignments.forEach((a, aIdx) => {
-      // Simula evolução: turma A melhora ao longo do tempo, turma B estagnada
+    for (let aIdx = 0; aIdx < classAssignments.length; aIdx++) {
+      const a = classAssignments[aIdx];
       const trend = s.turma === 0 ? aIdx * 0.01 : -aIdx * 0.005;
-      a.questionIds.forEach(qid => {
+      for (const qid of a.questionIds) {
         const q = questions.find(x => x.id === qid);
         const resp = simulateResponse(q.expected_difficulty, skill + trend);
-        queries.submissions.upsert({
+        await queries.submissions.upsert({
           id: uuid(), studentId: s.id, questionId: qid, assignmentId: a.id,
           completionStatus: resp.completionStatus,
           isCorrect: resp.isCorrect,
@@ -207,22 +203,27 @@ function main() {
           perceivedDifficulty: resp.perceivedDifficulty,
           timeSpentSeconds: resp.timeSpentSeconds,
         });
-      });
-    });
-  });
+      }
+    }
+  }
   console.log('Submissões geradas.');
 
   // Contagens
   const counts = {
-    schools: get('SELECT COUNT(*) AS n FROM schools').n,
-    users: get('SELECT COUNT(*) AS n FROM users').n,
-    classes: get('SELECT COUNT(*) AS n FROM classes').n,
-    assignments: get('SELECT COUNT(*) AS n FROM assignments').n,
-    questions: get('SELECT COUNT(*) AS n FROM questions').n,
-    submissions: get('SELECT COUNT(*) AS n FROM submissions').n,
+    schools: (await get('SELECT COUNT(*) AS n FROM schools')).n,
+    users: (await get('SELECT COUNT(*) AS n FROM users')).n,
+    classes: (await get('SELECT COUNT(*) AS n FROM classes')).n,
+    assignments: (await get('SELECT COUNT(*) AS n FROM assignments')).n,
+    questions: (await get('SELECT COUNT(*) AS n FROM questions')).n,
+    submissions: (await get('SELECT COUNT(*) AS n FROM submissions')).n,
   };
   console.log('\nSeed concluído:');
   console.log(counts);
+
+  await db.close();
 }
 
-main();
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

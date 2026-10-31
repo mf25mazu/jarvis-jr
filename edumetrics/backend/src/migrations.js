@@ -1,15 +1,8 @@
 // migrations.js — Criação do schema SQLite do EduMetrics
-import Database from 'better-sqlite3';
-import path from 'path';
+import { db } from './models/db.js';
 
-const DB_PATH = process.env.DB_PATH || path.resolve('data/edumetrics.db');
-
-export const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-export function migrate() {
-  db.exec(`
+export async function migrate() {
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS schools (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -139,5 +132,3 @@ export function migrate() {
     CREATE INDEX IF NOT EXISTS idx_submissions_created ON submissions(created_at);
   `);
 }
-
-migrate();
