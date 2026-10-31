@@ -1,0 +1,8 @@
+## 8. Entregáveis e Ordem de Trabalho
+
+1. *Plano resumido:* Arquitetura e protótipo de telas.
+2. *Estrutura de pastas do projeto.*
+3. *Esquema completo do banco de dados (SQL / Migrations).*
+4. *Código completo do Backend e Frontend.*
+5. *Dados de exemplo (Seed):* Criar 1 escola, 2 professores, 2 turmas, 8 estudantes e *no mínimo 10 listas por turma* para permitir o teste real das janelas 3/5/10, dos gráficos de radar e do motor de recomendações.
+6. *Instruções de execução e instalação.*

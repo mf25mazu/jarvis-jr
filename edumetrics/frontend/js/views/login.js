@@ -62,13 +62,13 @@ export function renderLogin(container) {
     inp.type = inp.type === 'password' ? 'text' : 'password';
   };
 
-  document.getElementById('loginForm').onsubmit = function(e) {
+  document.getElementById('loginForm').onsubmit = async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value;
     const senha = document.getElementById('senha').value;
     const errEl = document.getElementById('loginError');
 
-    const res = Auth.login(email, senha);
+    const res = await Auth.login(email, senha);
     if (!res.ok) {
       errEl.textContent = res.erro;
       errEl.style.display = 'flex';
@@ -198,7 +198,7 @@ export function renderCadastro(container) {
       return;
     }
 
-    Auth.login(email, senha);
+    await Auth.login(email, senha);
     toast('Conta criada com sucesso!', 'success');
     Router.navigate(`/${tipoAtual}`);
   };

@@ -1,20 +1,46 @@
 // auth.js — Autenticação e controle de sessão
-
 import { DB } from './db.js';
+import { API, setToken, clearToken, setUser } from './api.js';
 import { hashSenha } from './utils.js';
 
 const SESS_KEY = 'edm_sessao';
 
+function mapRole(role) {
+  return { SCHOOL: 'escola', TEACHER: 'professor', STUDENT: 'estudante' }[role] || role;
+}
+
 export const Auth = {
-  login(email, senha) {
+  async login(email, senha) {
+    // Tenta backend primeiro
+    try {
+      const data = await API.auth.login(email, senha);
+      if (data.token) {
+        setToken(data.token);
+        const usuario = {
+          id: data.user.id,
+          nome: data.user.name,
+          email: data.user.email,
+          tipo: mapRole(data.user.role),
+          escolaId: data.user.schoolId,
+          turmaIds: [],
+        };
+        setUser(usuario);
+        sessionStorage.setItem(SESS_KEY, JSON.stringify(usuario));
+        return { ok: true, usuario, api: true };
+      }
+    } catch (e) {
+      // fallback para LocalStorage
+    }
+
     const u = DB.usuarios.porEmail(email);
     if (!u) return { ok: false, erro: 'E-mail não encontrado.' };
     if (u.senha !== hashSenha(senha)) return { ok: false, erro: 'Senha incorreta.' };
     sessionStorage.setItem(SESS_KEY, JSON.stringify(u));
-    return { ok: true, usuario: u };
+    return { ok: true, usuario: u, api: false };
   },
 
   logout() {
+    clearToken();
     sessionStorage.removeItem(SESS_KEY);
     window.location.hash = '#/login';
   },
