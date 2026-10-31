@@ -1,13 +1,26 @@
+// views/estudante/dashboard.js — Dashboard do estudante com janelas acumuladas e gráficos
+
 import { DB } from '../../db.js';
-import { formatarData, toast } from '../../utils.js';
-import { diagnosticarEstudante } from '../../ai.js';
 import { Router } from '../../router.js';
 import { renderShell } from '../shared/shell.js';
+import { Charts } from '../../charts.js';
+import { diagnosticarEstudante } from '../../ai.js';
+import {
+  formatarData, formatarTempo, stripHtml, pct, media, desvio,
+  labelCategoriaErro, turmaComparavel, ritmoAprendizagem
+} from '../../utils.js';
 
 const navItems = [
   { icon: 'layout-dashboard', label: 'Dashboard', href: '/estudante', active: true },
   { icon: 'clipboard-list', label: 'Minhas Listas', href: '/estudante/listas' },
   { icon: 'bar-chart-2', label: 'Meu Relatório', href: '/estudante/relatorio' },
+];
+
+const JANELAS = [
+  { id: 1, label: 'Lista Atual' },
+  { id: 3, label: 'Últimas 3' },
+  { id: 5, label: 'Últimas 5' },
+  { id: 10, label: 'Últimas 10' },
 ];
 
 function getListasParaEstudante(usuario) {
@@ -24,164 +37,358 @@ function getListasParaEstudante(usuario) {
 
 function getStatusLista(lista, submissao) {
   if (submissao) return 'respondida';
-  if (Date.now() > lista.dataFim) return 'encerrada';
-  if (Date.now() < lista.dataInicio) return 'encerrada';
+  if (Date.now() > new Date(lista.dataFim).getTime()) return 'encerrada';
+  if (Date.now() < new Date(lista.dataInicio).getTime()) return 'encerrada';
   return 'disponivel';
 }
 
-export async function renderEstudanteDashboard(container, usuario) {
-  // Load all listas for this student
-  const todasListas = getListasParaEstudante(usuario);
+function obterSubmissoesJanela(usuario, janela) {
+  const todas = DB.submissoes.porEstudante(usuario.id)
+    .filter(s => s.status === 'concluida')
+    .sort((a, b) => a.dataFim - b.dataFim);
+  if (janela === 1) return todas.slice(-1);
+  return todas.slice(-janela);
+}
 
-  // Map submissions
-  const submissoes = {};
-  for (const lista of todasListas) {
-    const sub = DB.submissoes.porEstudanteELista(usuario.id, lista.id);
-    if (sub) submissoes[lista.id] = sub;
-  }
+function perfilErros(submissoes) {
+  const cats = { falta_teoria: 0, erro_conta: 0, interpretacao: 0, falta_atencao: 0 };
+  let totalErros = 0;
+  submissoes.forEach(s => {
+    (s.respostas || []).forEach(r => {
+      if (r.tipoConclusao === 'fiz' && r.statusAutodeclarado === 'erro' && r.categoriaErro) {
+        cats[r.categoriaErro]++;
+        totalErros++;
+      }
+    });
+  });
+  return Object.entries(cats).map(([k, v]) => ({
+    id: k,
+    label: labelCategoriaErro(k),
+    pct: totalErros ? Math.round((v / totalErros) * 100) : 0,
+  }));
+}
 
-  // Stats
-  const listasDisponiveis = todasListas.filter(l => getStatusLista(l, submissoes[l.id]) === 'disponivel');
-  const listasConcluidas = todasListas.filter(l => !!submissoes[l.id]);
+function perfilErrosTurma(turmaId, submissoesAluno) {
+  const estudantes = DB.usuarios.porTurma(turmaId, 'estudante');
+  const listaIds = new Set(submissoesAluno.map(s => s.listaId));
+  const cats = { falta_teoria: 0, erro_conta: 0, interpretacao: 0, falta_atencao: 0 };
+  let totalErros = 0;
+  estudantes.forEach(e => {
+    DB.submissoes.porEstudante(e.id)
+      .filter(s => s.status === 'concluida' && listaIds.has(s.listaId))
+      .forEach(s => {
+        (s.respostas || []).forEach(r => {
+          if (r.tipoConclusao === 'fiz' && r.statusAutodeclarado === 'erro' && r.categoriaErro) {
+            cats[r.categoriaErro]++;
+            totalErros++;
+          }
+        });
+      });
+  });
+  return Object.entries(cats).map(([k, v]) => ({
+    id: k,
+    pct: totalErros ? Math.round((v / totalErros) * 100) : 0,
+  }));
+}
 
-  // AI Diagnostic
-  let diag = null;
-  try { diag = diagnosticarEstudante(usuario.id); } catch (_) {}
+function notasPorLista(submissoes, listasMap) {
+  return submissoes.map(s => {
+    const lista = listasMap[s.listaId] || DB.listas.porId(s.listaId);
+    return {
+      listaId: s.listaId,
+      titulo: lista?.titulo?.substring(0, 20) || 'Lista',
+      nota: pct(s.pontuacao, s.totalQuestoes),
+    };
+  });
+}
 
-  const mediaGeral = diag ? diag.mediaGeral + '%' : '—';
-  const scoreRisco = diag ? diag.scoreRisco : null;
+function notasTurmaPorLista(turmaId, submissoesAluno) {
+  const estudantes = DB.usuarios.porTurma(turmaId, 'estudante');
+  const listaIds = submissoesAluno.map(s => s.listaId);
+  const porLista = {};
+  listaIds.forEach(lid => { porLista[lid] = []; });
+  estudantes.forEach(e => {
+    DB.submissoes.porEstudante(e.id)
+      .filter(s => s.status === 'concluida' && porLista[s.listaId])
+      .forEach(s => porLista[s.listaId].push(pct(s.pontuacao, s.totalQuestoes)));
+  });
+  return listaIds.map(lid => ({
+    listaId: lid,
+    media: porLista[lid].length ? Math.round(media(porLista[lid])) : 0,
+  }));
+}
 
-  function scoreRiscoBadge(score) {
-    if (score === null) return '<span class="badge">—</span>';
-    if (score < 30) return `<span class="badge badge-success">${score}/100</span>`;
-    if (score < 60) return `<span class="badge badge-warning">${score}/100</span>`;
-    return `<span class="badge badge-danger">${score}/100</span>`;
-  }
+function ultimaRespostaInfo(sub) {
+  if (!sub?.respostas?.length) return null;
+  const ultima = sub.respostas[sub.respostas.length - 1];
+  const questao = DB.questoes.porId(ultima.questaoId);
+  return { resposta: ultima, questao };
+}
 
-  // Last 3 scores
-  const ultimasPontuacoes = diag ? (diag.pontuacoes || []).slice(-3) : [];
-
-  function badgePct(pct) {
-    const color = pct >= 70 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
-    return `<span style="background:${color};color:#fff;padding:4px 12px;border-radius:999px;font-weight:600;font-size:0.9rem;">${pct}%</span>`;
-  }
-
-  const ultimasHtml = ultimasPontuacoes.length
-    ? ultimasPontuacoes.map(p => badgePct(p)).join(' ')
-    : '<span style="color:var(--text-muted)">Nenhum dado disponível ainda.</span>';
-
-  function statusBadge(status) {
-    if (status === 'respondida') return '<span class="badge badge-success">Respondida</span>';
-    if (status === 'encerrada') return '<span class="badge" style="background:var(--bg-muted,#e5e7eb);color:var(--text-muted,#6b7280)">Encerrada</span>';
-    return '<span class="badge" style="background:#dbeafe;color:#1d4ed8">Disponível</span>';
-  }
-
-  function actionButton(lista, status) {
-    if (status === 'disponivel') {
-      return `<button class="btn btn-primary btn-sm responder-btn" data-listaid="${lista.id}">
-        <i data-lucide="play-circle"></i> Responder
-      </button>`;
-    }
-    if (status === 'respondida') {
-      return `<button class="btn btn-sm ver-relatorio-btn" style="border:1px solid var(--border)">
-        <i data-lucide="bar-chart-2"></i> Ver resultado
-      </button>`;
-    }
-    return '';
-  }
-
-  const listasRows = todasListas.slice(0, 10).map(lista => {
-    const status = getStatusLista(lista, submissoes[lista.id]);
-    return `<tr>
-      <td><strong>${lista.titulo}</strong></td>
-      <td>${formatarData(lista.dataFim)}</td>
-      <td>${statusBadge(status)}</td>
-      <td>${actionButton(lista, status)}</td>
-    </tr>`;
-  }).join('');
-
-  const conteudo = `
-    <div class="stats-grid" style="margin-bottom:1.5rem">
-      <div class="card" style="padding:1.25rem;text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:var(--primary)">${listasDisponiveis.length}</div>
-        <div style="color:var(--text-muted);font-size:0.875rem;margin-top:0.25rem">Listas disponíveis</div>
+function renderCardUltimaResposta(info) {
+  if (!info) return '';
+  const { resposta, questao } = info;
+  const isFiz = resposta.tipoConclusao === 'fiz';
+  return `
+    <div class="card" style="padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <i data-lucide="check-circle" style="color:var(--primary);"></i>
+        <h3 style="font-size:1rem;margin:0;">Sua última resposta</h3>
       </div>
-      <div class="card" style="padding:1.25rem;text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:#22c55e">${listasConcluidas.length}</div>
-        <div style="color:var(--text-muted);font-size:0.875rem;margin-top:0.25rem">Listas concluídas</div>
-      </div>
-      <div class="card" style="padding:1.25rem;text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:var(--primary)">${mediaGeral}</div>
-        <div style="color:var(--text-muted);font-size:0.875rem;margin-top:0.25rem">Média geral</div>
-      </div>
-      <div class="card" style="padding:1.25rem;text-align:center">
-        <div style="font-size:1.5rem;font-weight:700;margin-bottom:0.25rem">${scoreRiscoBadge(scoreRisco)}</div>
-        <div style="color:var(--text-muted);font-size:0.875rem">Score de risco</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:1.5rem">
-      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
-        <i data-lucide="clipboard-list"></i>
-        <h3 style="margin:0;font-size:1rem;font-weight:600">Listas disponíveis</h3>
-      </div>
-      ${todasListas.length === 0 ? `
-        <div style="padding:2rem;text-align:center;color:var(--text-muted)">
-          <i data-lucide="inbox" style="width:2.5rem;height:2.5rem;margin-bottom:0.75rem;opacity:0.4"></i>
-          <p>Nenhuma lista encontrada para suas turmas.</p>
+      <p style="color:var(--text-2);font-size:.9rem;margin-bottom:12px;">${stripHtml(questao?.enunciado || '').substring(0, 100)}…</p>
+      ${isFiz ? `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <span class="badge ${resposta.statusAutodeclarado === 'acerto' ? 'badge-success' : 'badge-warning'}">
+            ${resposta.statusAutodeclarado === 'acerto' ? '✅ Acertei' : '⚠️ Errei'}
+          </span>
+          <span class="badge badge-info">
+            <i data-lucide="clock" style="width:12px;height:12px;"></i> ${formatarTempo(resposta.tempoResposta)}
+          </span>
         </div>
       ` : `
-        <div class="table-wrap">
-          <table style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr style="border-bottom:1px solid var(--border)">
-                <th style="padding:0.75rem 1rem;text-align:left;font-size:0.8rem;color:var(--text-muted)">Título</th>
-                <th style="padding:0.75rem 1rem;text-align:left;font-size:0.8rem;color:var(--text-muted)">Prazo</th>
-                <th style="padding:0.75rem 1rem;text-align:left;font-size:0.8rem;color:var(--text-muted)">Status</th>
-                <th style="padding:0.75rem 1rem;text-align:left;font-size:0.8rem;color:var(--text-muted)">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${listasRows}
-            </tbody>
-          </table>
+        <div class="alert alert-warning" style="margin:0;">
+          <strong>Questão não finalizada</strong> — registrada como lacuna conceitual.
         </div>
       `}
     </div>
-
-    <div class="card">
-      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
-        <i data-lucide="trending-up"></i>
-        <h3 style="margin:0;font-size:1rem;font-weight:600">Preview de desempenho</h3>
-        <span style="font-size:0.78rem;color:var(--text-muted);margin-left:auto">Últimas 3 listas</span>
-      </div>
-      <div style="padding:1.25rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-        ${ultimasHtml}
-      </div>
-    </div>
   `;
+}
 
-  renderShell({
-    usuario,
-    navItems,
-    titulo: 'Dashboard',
-    subtitulo: `Bem-vindo, ${usuario.nome?.split(' ')[0] || ''}!`,
-    conteudo,
-  });
+export function renderEstudanteDashboard(container, usuario) {
+  const turmaIds = usuario.turmaIds || [];
+  const turmaId = turmaIds[0];
+  const todasListas = getListasParaEstudante(usuario);
 
-  if (window.lucide) window.lucide.createIcons();
+  let janelaAtual = 3;
 
-  // Event listeners
-  document.querySelectorAll('.responder-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const listaId = btn.dataset.listaid;
-      Router.navigate(`/estudante/responder?listaId=${listaId}`);
+  function renderDashboard() {
+    const submissoes = obterSubmissoesJanela(usuario, janelaAtual);
+    const listasMap = Object.fromEntries(todasListas.map(l => [l.id, l]));
+    const diag = diagnosticarEstudante(usuario.id);
+
+    const listasDisponiveis = todasListas.filter(l => {
+      const sub = DB.submissoes.porEstudanteELista(usuario.id, l.id);
+      return getStatusLista(l, sub) === 'disponivel';
     });
-  });
+    const listasConcluidas = todasListas.filter(l =>
+      DB.submissoes.porEstudanteELista(usuario.id, l.id)?.status === 'concluida'
+    );
 
-  document.querySelectorAll('.ver-relatorio-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Router.navigate('/estudante/relatorio');
+    const scoreRisco = diag ? diag.scoreRisco : null;
+    function scoreRiscoBadge(score) {
+      if (score === null) return '<span class="badge">—</span>';
+      if (score < 30) return `<span class="badge badge-success">${score}/100</span>`;
+      if (score < 60) return `<span class="badge badge-warning">${score}/100</span>`;
+      return `<span class="badge badge-danger">${score}/100</span>`;
+    }
+
+    const ultimaSub = obterSubmissoesJanela(usuario, 100).slice(-1)[0];
+    const ultimaInfo = ultimaSub ? ultimaRespostaInfo(ultimaSub) : null;
+
+    const ritmo = ritmoAprendizagem(DB.submissoes.porEstudante(usuario.id).filter(s => s.status === 'concluida'), 3);
+    const ritmoHtml = ritmo === null ? '—'
+      : `<span style="color:${ritmo > 0 ? 'var(--success)' : 'var(--danger)'};font-weight:700;">${ritmo > 0 ? '+' : ''}${ritmo}pp</span>`;
+
+    const seletorJanela = `
+      <div class="tabs" style="margin-bottom:24px;">
+        ${JANELAS.map(j => `
+          <button type="button" class="tab ${janelaAtual === j.id ? 'active' : ''}" data-janela="${j.id}">
+            ${j.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
+
+    const conteudo = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:1.25rem;margin-bottom:4px;">Dashboard</h2>
+          <p style="color:var(--text-2);font-size:.9rem;margin:0;">Bem-vindo, ${usuario.nome?.split(' ')[0] || ''}!</p>
+        </div>
+        ${scoreRiscoBadge(scoreRisco)}
+      </div>
+
+      ${seletorJanela}
+
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="card" style="padding:20px;text-align:center;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Listas disponíveis</div>
+          <div style="font-size:32px;font-weight:700;color:var(--primary);">${listasDisponiveis.length}</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Listas concluídas</div>
+          <div style="font-size:32px;font-weight:700;color:#22c55e;">${listasConcluidas.length}</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Média geral</div>
+          <div style="font-size:32px;font-weight:700;color:var(--primary);">${diag ? diag.mediaGeral + '%' : '—'}</div>
+        </div>
+        <div class="card" style="padding:20px;text-align:center;">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Ritmo (3 listas)</div>
+          <div style="font-size:32px;font-weight:700;">${ritmoHtml}</div>
+        </div>
+      </div>
+
+      ${renderCardUltimaResposta(ultimaInfo)}
+
+      <div class="grid-2" style="margin-bottom:24px;">
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:1rem;margin-bottom:12px;">Perfil de erros vs. turma</h3>
+          <div class="chart-box" style="height:260px;">
+            <canvas id="radarErros"></canvas>
+          </div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:1rem;margin-bottom:12px;">Tendência: você vs. turma</h3>
+          <div class="chart-box" style="height:260px;">
+            <canvas id="linhaTendencia"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:24px;">
+        <h3 style="font-size:1rem;margin-bottom:12px;">Sua posição na distribuição da turma</h3>
+        <div class="chart-box" style="height:240px;">
+          <canvas id="curvaGaussiana"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:20px 24px;">
+          <h3 class="card-title">Listas disponíveis</h3>
+        </div>
+        <div class="table-wrap">
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Prazo</th>
+                <th>Status</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${todasListas.slice(0, 8).map(lista => {
+                const sub = DB.submissoes.porEstudanteELista(usuario.id, lista.id);
+                const status = getStatusLista(lista, sub);
+                return `<tr>
+                  <td><strong>${lista.titulo}</strong></td>
+                  <td>${formatarData(lista.dataFim)}</td>
+                  <td>${status === 'respondida' ? '<span class="badge badge-success">Respondida</span>' : status === 'encerrada' ? '<span class="badge badge-gray">Encerrada</span>' : '<span class="badge" style="background:#dbeafe;color:#1d4ed8">Disponível</span>'}</td>
+                  <td>
+                    ${status === 'disponivel'
+                      ? `<button class="btn btn-primary btn-sm responder-btn" data-listaid="${lista.id}">Responder</button>`
+                      : status === 'respondida'
+                        ? `<button class="btn btn-outline btn-sm ver-relatorio-btn">Ver resultado</button>`
+                        : '—'
+                    }
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    renderShell({
+      usuario,
+      navItems,
+      titulo: 'Dashboard',
+      subtitulo: 'Visão geral do seu desempenho',
+      conteudo,
     });
-  });
+
+    bindEventos();
+    renderGraficos(submissoes, listasMap, turmaId);
+  }
+
+  function bindEventos() {
+    document.querySelectorAll('[data-janela]').forEach(btn => {
+      btn.onclick = () => {
+        janelaAtual = parseInt(btn.dataset.janela, 10);
+        renderDashboard();
+      };
+    });
+    document.querySelectorAll('.responder-btn').forEach(btn => {
+      btn.onclick = () => Router.navigate(`/estudante/responder?listaId=${btn.dataset.listaid}`);
+    });
+    document.querySelectorAll('.ver-relatorio-btn').forEach(btn => {
+      btn.onclick = () => Router.navigate('/estudante/relatorio');
+    });
+  }
+
+  function renderGraficos(submissoes, listasMap, turmaId) {
+    if (!submissoes.length) return;
+
+    // Radar de erros
+    const perfilAluno = perfilErros(submissoes);
+    const labelsRadar = perfilAluno.map(p => p.label);
+    const dadosAluno = perfilAluno.map(p => p.pct);
+    let datasetsRadar = [{
+      nome: 'Você',
+      dados: dadosAluno,
+      cor: '#4f46e5'
+    }];
+    if (turmaId && turmaComparavel(submissoes[submissoes.length - 1].listaId, turmaId, DB)) {
+      const perfilTurma = perfilErrosTurma(turmaId, submissoes);
+      datasetsRadar.push({
+        nome: 'Média da turma',
+        dados: labelsRadar.map(l => {
+          const item = perfilTurma.find(p => p.label === l);
+          return item ? item.pct : 0;
+        }),
+        cor: '#94a3b8'
+      });
+    }
+    Charts.radar({ id: 'radarErros', labels: labelsRadar, datasets: datasetsRadar });
+
+    // Linha de tendência
+    const notasAluno = notasPorLista(submissoes, listasMap);
+    const datasetsLinha = [{
+      label: 'Você',
+      data: notasAluno.map(n => n.nota),
+      borderColor: '#4f46e5',
+      backgroundColor: '#4f46e533',
+      fill: true,
+    }];
+    const labelsLinha = notasAluno.map(n => n.titulo);
+    if (turmaId) {
+      const notasTurma = notasTurmaPorLista(turmaId, submissoes);
+      datasetsLinha.push({
+        label: 'Média da turma',
+        data: notasTurma.map(n => n.media),
+        borderColor: '#94a3b8',
+        borderDash: [5, 5],
+        fill: false,
+      });
+    }
+    Charts.linha({ id: 'linhaTendencia', labels: labelsLinha, datasets: datasetsLinha, titulo: '' });
+
+    // Curva gaussiana (última lista)
+    const ultimaSub = submissoes[submissoes.length - 1];
+    const notaAluno = pct(ultimaSub.pontuacao, ultimaSub.totalQuestoes);
+    const estudantes = turmaId ? DB.usuarios.porTurma(turmaId, 'estudante') : [];
+    const notasTurmaUltima = [];
+    estudantes.forEach(e => {
+      const s = DB.submissoes.porEstudanteELista(e.id, ultimaSub.listaId);
+      if (s?.status === 'concluida') notasTurmaUltima.push(pct(s.pontuacao, s.totalQuestoes));
+    });
+    if (notasTurmaUltima.length >= 2) {
+      const m = media(notasTurmaUltima);
+      const dp = desvio(notasTurmaUltima) || 1;
+      Charts.gaussiana({
+        id: 'curvaGaussiana',
+        media: m,
+        desvioPadrao: dp,
+        posicaoAluno: notaAluno,
+        titulo: `Você está na nota ${notaAluno}%`
+      });
+    } else {
+      document.getElementById('curvaGaussiana').parentElement.innerHTML =
+        '<p style="color:var(--text-2);text-align:center;padding-top:80px;">Dados insuficientes para a curva de distribuição.</p>';
+    }
+  }
+
+  renderDashboard();
 }

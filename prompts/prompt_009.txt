@@ -1,0 +1,20 @@
+## 5. Visualização de Dados e Dashboards (UX/UI Educacional)
+
+* *Design:* Mobile-first, acessível (WCAG), interface limpa em tom escolar/profissional.
+* *Seletor de Janela Fixo:* Topo dos painéis com botões: Lista Atual | Últimas 3 | Últimas 5 | Últimas 10.
+* *Painel do Estudante:*
+* Card pós-resposta com métricas de tempo ou badge "Questão não finalizada".
+* *Gráfico de Radar Acumulado:* Perfil de erros do estudante sobreposto à média da turma.
+* *Gráfico de Linha de Tendência:* Nota do estudante vs. média da turma com indicador de ritmo.
+* *Curva de Distribuição Normal (Gaussiana):* Posição exata do aluno na curva da turma na lista.
+
+
+* *Painel do Professor:*
+* *Matriz de Descompasso ($\Delta D$):* Expectativa (1-5) vs. Percepção (1-5).
+* *Gráfico de Evolução de Causa Raiz:* Linhas temporais dos tipos de erro na turma.
+* *Relatório de Risco da Turma:* Tabela de alunos com desaceleração acumulada ($\text{Ritmo} < 0$).
+
+
+* *Painel da Escola:*
+* Comparativo inter-turmas do mesmo ano letivo (ex: 9º A vs 9º B).
+* *Radar Multidisciplinar Acumulado:* Mapeamento de vulnerabilidades por matéria.
