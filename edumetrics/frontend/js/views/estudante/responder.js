@@ -363,7 +363,7 @@ export function renderEstudanteResponder(container, usuario, params = {}) {
 
   if (sub.status === 'concluida') {
     app.innerHTML = renderResultado(sub, lista, questoes);
-    lucide.createIcons();
+    window.lucide?.createIcons?.();
     bindResultado(lista.id);
     return;
   }
@@ -399,7 +399,7 @@ export function renderEstudanteResponder(container, usuario, params = {}) {
         </div>
       </div>
     `;
-    lucide.createIcons();
+    window.lucide?.createIcons?.();
     bindEventosQuestao(q);
     iniciarTimer();
   }
@@ -557,7 +557,7 @@ export function renderEstudanteResponder(container, usuario, params = {}) {
         </div>
       </div>
     `;
-    lucide.createIcons();
+    window.lucide?.createIcons?.();
 
     document.getElementById('btnProximaQuestao').onclick = () => {
       questaoAtual++;

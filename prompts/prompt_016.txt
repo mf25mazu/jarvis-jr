@@ -1,0 +1,6 @@
+O login no deploy (Render) volta para a tela de login. Causa: o script lucide.min.js carregado de unpkg.com falha em alguns navegadores/redes (status "(failed)" na aba Network), então lucide.createIcons() lança ReferenceError em renderLogin/renderCadastro e os handlers (onsubmit, toggleSenha) nunca são ligados. O formulário então faz submit nativo e recarrega a página.
+
+1. Baixe lucide@0.263.1 (dist/umd/lucide.min.js) para frontend/vendor/lucide.min.js e referencie localmente no index.html. Faça o mesmo com chart.js@4.4.0 (frontend/vendor/chart.umd.min.js).
+2. Em todo o frontend, troque lucide.createIcons() por uma chamada segura (ex.: window.lucide?.createIcons?.()), e no login ligue os handlers ANTES de chamar a função de ícones, para que uma falha de ícones nunca quebre a página.
+3. Adicione type="button"/preventDefault de forma que o form nunca faça submit nativo.
+4. Teste no navegador, bloqueando unpkg.com e jsdelivr.net, e confirme que o login ainda funciona. Só avise que terminou depois disso.

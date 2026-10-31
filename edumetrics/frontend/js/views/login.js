@@ -55,12 +55,13 @@ export function renderLogin(container) {
   </div>
   `;
 
-  lucide.createIcons();
-
+  // Liga handlers ANTES de criar ícones, para que falha de CDN/lucide nunca quebre a página
   document.getElementById('toggleSenha').onclick = function () {
     const inp = document.getElementById('senha');
     inp.type = inp.type === 'password' ? 'text' : 'password';
   };
+
+  window.lucide?.createIcons?.();
 
   document.getElementById('loginForm').onsubmit = async function (e) {
     e.preventDefault();
@@ -154,8 +155,6 @@ export function renderCadastro(container) {
   </div>
   `;
 
-  lucide.createIcons();
-
   let tipoAtual = 'escola';
   document.querySelectorAll('.tab[data-tipo]').forEach(tab => {
     tab.onclick = function () {
@@ -167,6 +166,8 @@ export function renderCadastro(container) {
       document.getElementById('campo-turma').classList.toggle('hidden', tipoAtual === 'escola');
     };
   });
+
+  window.lucide?.createIcons?.();
 
   document.getElementById('cadastroForm').onsubmit = async function (e) {
     e.preventDefault();

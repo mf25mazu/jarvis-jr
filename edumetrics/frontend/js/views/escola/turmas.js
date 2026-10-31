@@ -52,7 +52,7 @@ function abrirModalTurma(usuario, turmaExistente, onSalvo) {
     </div>
   `;
   document.body.appendChild(modal);
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   const fechar = () => document.body.removeChild(modal);
   modal.querySelector('#fecharModal').onclick  = fechar;

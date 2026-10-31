@@ -190,12 +190,12 @@ export function renderProfessorListas(container, usuario) {
     conteudo: renderContent(),
   });
 
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   function openModal(lista = null) {
     const modalHtml = buildModal(minhasTurmas, minhasQuestoes, lista);
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    lucide.createIcons();
+    window.lucide?.createIcons?.();
 
     const overlay = document.getElementById('modal-overlay');
     const closeModal = () => overlay.remove();
@@ -245,7 +245,7 @@ export function renderProfessorListas(container, usuario) {
     const pageBody = document.querySelector('.page-body');
     if (pageBody) {
       pageBody.innerHTML = renderContent();
-      lucide.createIcons();
+      window.lucide?.createIcons?.();
       bindEvents();
     }
   }

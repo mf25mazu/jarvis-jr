@@ -153,7 +153,7 @@ export function abrirModalQuestao(usuario, questaoExistente, onSalvo) {
     </style>
   `;
   document.body.appendChild(modal);
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   // Editor rico
   const editor = modal.querySelector('#qEnunciado');
@@ -357,7 +357,7 @@ export function abrirModalGabarito(questao) {
     </div>
   `;
   document.body.appendChild(modal);
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   const fechar = () => document.body.removeChild(modal);
   modal.querySelector('#fecharModal').onclick = fechar;
@@ -424,7 +424,7 @@ export function abrirModalEstatistica(questao) {
     </div>
   `;
   document.body.appendChild(modal);
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   const fechar = () => document.body.removeChild(modal);
   modal.querySelector('#fecharModal').onclick = fechar;

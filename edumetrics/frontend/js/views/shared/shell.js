@@ -69,7 +69,7 @@ export function renderShell({ usuario, navItems, titulo, subtitulo, conteudo }) 
   </div>
   `;
 
-  lucide.createIcons();
+  window.lucide?.createIcons?.();
 
   // Nav items click
   document.querySelectorAll('.nav-item[data-href]').forEach(el => {
