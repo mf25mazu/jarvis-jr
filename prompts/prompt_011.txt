@@ -1,0 +1,19 @@
+## 7. Requisitos Técnicos e Modelagem do Banco de Dados
+
+* *Stack Sugerida:* React / Next.js + Node.js (Express) + PostgreSQL ou SQLite.
+* *Autenticação:* RBAC seguro (JWT/Sessions) para Escola, Professor e Estudante.
+* *Entidades Principais no Banco:*
+* Users (id, name, email, password_hash, role ["SCHOOL", "TEACHER", "STUDENT"], school_id)
+* Schools (id, name), Classes (id, name, grade_year_id, school_id), Subjects (id, name)
+* Questions (id, subject_id, statement, answer_key, expected_difficulty [1-5], expected_time_seconds, question_type)
+* Assignments (id, title, subject_id, class_id, created_at) e AssignmentQuestions (assignment_id, question_id, order)
+* Submissions (
+id, student_id, question_id, assignment_id,
+completion_status ["FIZ", "NAO_FIZ"],
+is_correct [boolean|null],
+error_category ["TEORIA", "CONTA", "INTERPRETACAO", "ATENCAO"|null],
+perceived_difficulty [1-5|null],
+time_spent_seconds [integer],
+created_at
+)
+* RollingWindowMetrics (View ou Tabela materializada agrupando médias móveis, taxas de "Não fiz" e $\Delta D$ para as janelas 3, 5 e 10).
