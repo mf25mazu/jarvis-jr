@@ -269,36 +269,64 @@ export const DB = {
       tempoLimite: 30, status: 'publicada',
     }]);
 
-    // Submissões de exemplo
-    const sub = (id, alunoId, resps) => ({
-      id, listaId: ids.lista1, estudanteId: alunoId,
-      status: 'concluida',
-      dataInicio: Date.now() - 3600000,
-      dataFim: Date.now() - 1800000,
-      tempoTotal: 1800,
-      pontuacao: resps.filter(r => r.correta).length,
-      totalQuestoes: resps.length,
-      respostas: resps,
+    // Submissões de exemplo (schema v2: metacognição + D_percebida)
+    const sub = (id, alunoId, resps) => {
+      const finalizadas = resps.filter(r => r.tipoConclusao === 'fiz');
+      return {
+        id, listaId: ids.lista1, estudanteId: alunoId,
+        status: 'concluida',
+        dataInicio: Date.now() - 3600000,
+        dataFim: Date.now() - 1800000,
+        tempoTotal: resps.reduce((a, r) => a + (r.tempoResposta || 0), 0),
+        pontuacao: finalizadas.filter(r => r.statusAutodeclarado === 'acerto').length,
+        totalQuestoes: resps.length,
+        dificuldadePercebidaMedia: Math.round(finalizadas.reduce((a, r) => a + (r.dificuldadePercebida || 3), 0) / (finalizadas.length || 1)),
+        respostas: resps,
+      };
+    };
+
+    const fiz = (questaoId, tempo, statusErro, categoriaErro, dPercebida) => ({
+      questaoId,
+      tipoConclusao: 'fiz',
+      respostaEstudante: '',
+      statusAutodeclarado: statusErro,
+      categoriaErro: statusErro === 'erro' ? categoriaErro : null,
+      dificuldadePercebida: dPercebida,
+      tempoResposta: tempo,
+      naoFinalizada: false,
+      lacunaConceitual: false,
+    });
+
+    const naoFiz = (questaoId, tempo, dPercebida = 3) => ({
+      questaoId,
+      tipoConclusao: 'nao_fiz',
+      respostaEstudante: '',
+      statusAutodeclarado: null,
+      categoriaErro: null,
+      dificuldadePercebida: dPercebida,
+      tempoResposta: tempo,
+      naoFinalizada: true,
+      lacunaConceitual: true,
     });
 
     set('submissoes', [
       sub('sub-1', ids.aluno1, [
-        { questaoId: ids.q1, resposta: 'b', correta: true, tempoResposta: 45, confianca: 4 },
-        { questaoId: ids.q2, resposta: 'a', correta: true, tempoResposta: 20, confianca: 5 },
-        { questaoId: ids.q3, resposta: 'a', correta: true, tempoResposta: 15, confianca: 5 },
-        { questaoId: ids.q4, resposta: 'b', correta: false, tempoResposta: 120, confianca: 3 },
+        fiz(ids.q1, 45, 'acerto', null, 2),
+        fiz(ids.q2, 20, 'acerto', null, 1),
+        fiz(ids.q3, 15, 'acerto', null, 1),
+        fiz(ids.q4, 120, 'erro', 'falta_teoria', 4),
       ]),
       sub('sub-2', ids.aluno2, [
-        { questaoId: ids.q1, resposta: 'c', correta: false, tempoResposta: 90, confianca: 2 },
-        { questaoId: ids.q2, resposta: 'a', correta: true, tempoResposta: 10, confianca: 5 },
-        { questaoId: ids.q3, resposta: 'b', correta: false, tempoResposta: 60, confianca: 3 },
-        { questaoId: ids.q4, resposta: 'c', correta: true, tempoResposta: 75, confianca: 4 },
+        fiz(ids.q1, 90, 'erro', 'erro_conta', 3),
+        fiz(ids.q2, 10, 'acerto', null, 1),
+        fiz(ids.q3, 60, 'erro', 'falta_atencao', 4),
+        fiz(ids.q4, 75, 'acerto', null, 3),
       ]),
       sub('sub-3', ids.aluno3, [
-        { questaoId: ids.q1, resposta: 'b', correta: true, tempoResposta: 30, confianca: 5 },
-        { questaoId: ids.q2, resposta: 'b', correta: false, tempoResposta: 25, confianca: 2 },
-        { questaoId: ids.q3, resposta: 'a', correta: true, tempoResposta: 20, confianca: 5 },
-        { questaoId: ids.q4, resposta: 'c', correta: true, tempoResposta: 50, confianca: 4 },
+        fiz(ids.q1, 30, 'acerto', null, 1),
+        naoFiz(ids.q2, 25, 4),
+        fiz(ids.q3, 20, 'acerto', null, 1),
+        fiz(ids.q4, 50, 'acerto', null, 3),
       ]),
     ]);
   }

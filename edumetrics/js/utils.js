@@ -106,6 +106,127 @@ export function stripHtml(html) {
   return tmp.textContent || tmp.innerText || '';
 }
 
+// Estatísticas de uma questão dentro de uma turma (submissões concluídas)
+// Recebe o DB para evitar import cíclico em ES modules
+export function estatisticasQuestaoTurma(DB, questaoId, turmaId) {
+  const submissoes = DB.submissoes.todas().filter(s =>
+    s.status === 'concluida' &&
+    s.respostas?.some(r => r.questaoId === questaoId) &&
+    DB.usuarios.porId(s.estudanteId)?.turmaIds?.includes(turmaId)
+  );
+  const respostas = submissoes.flatMap(s => s.respostas.filter(r => r.questaoId === questaoId && !r.naoFinalizada));
+  const total = respostas.length;
+  const acertos = respostas.filter(r => r.statusAutodeclarado === 'acerto').length;
+  const tempoMedio = total ? Math.round(respostas.reduce((a, r) => a + (r.tempoResposta || 0), 0) / total) : 0;
+  return {
+    total,
+    acertos,
+    taxaAcerto: total ? Math.round((acertos / total) * 100) : 0,
+    tempoMedio,
+  };
+}
+
+export function labelCategoriaErro(c) {
+  return {
+    falta_teoria: 'Falta de Teoria',
+    erro_conta: 'Erro de Conta',
+    interpretacao: 'Interpretação de Texto',
+    falta_atencao: 'Falta de Atenção',
+  }[c] || c;
+}
+
+export function corDificuldadePercebida(d) {
+  return ['#22c55e', '#4ade80', '#f59e0b', '#f97316', '#ef4444'][Math.max(1, Math.min(5, d || 3)) - 1] || '#64748b';
+}
+
+// ─── Análise por Janelas Acumuladas ─────────────────────────────────────────
+
+function submissoesOrdenadas(submissoes) {
+  return [...submissoes].filter(s => s.status === 'concluida' && s.dataFim).sort((a, b) => a.dataFim - b.dataFim);
+}
+
+function janela(submissoes, n) {
+  const ord = submissoesOrdenadas(submissoes);
+  return ord.slice(-n);
+}
+
+export function mediaMovelAcertos(submissoes, n) {
+  const slice = janela(submissoes, n);
+  if (!slice.length) return 0;
+  return Math.round(media(slice.map(s => pct(s.pontuacao, s.totalQuestoes))));
+}
+
+export function taxaNaoFiz(submissoes, n) {
+  const slice = janela(submissoes, n);
+  if (!slice.length) return 0;
+  const total = slice.reduce((acc, s) => acc + (s.respostas?.length || 0), 0);
+  const naoFiz = slice.reduce((acc, s) => acc + (s.respostas?.filter(r => r.naoFinalizada).length || 0), 0);
+  return total ? Math.round((naoFiz / total) * 100) : 0;
+}
+
+export function evolucaoTiposErro(submissoes, n) {
+  const slice = janela(submissoes, n);
+  const categorias = { falta_teoria: 0, erro_conta: 0, interpretacao: 0, falta_atencao: 0 };
+  slice.forEach(s => {
+    (s.respostas || []).forEach(r => {
+      if (r.tipoConclusao === 'fiz' && r.statusAutodeclarado === 'erro' && r.categoriaErro) {
+        categorias[r.categoriaErro] = (categorias[r.categoriaErro] || 0) + 1;
+      }
+    });
+  });
+  const total = Object.values(categorias).reduce((a, b) => a + b, 0);
+  return Object.entries(categorias).map(([id, valor]) => ({
+    id, valor, pct: total ? Math.round((valor / total) * 100) : 0,
+  }));
+}
+
+// ΔD = D_percebida média dos estudantes - D_esperada do professor
+// Recebe DB para evitar import cíclico
+export function calcularDeltaDPercebida(DB, submissao, lista) {
+  if (!submissao || !lista) return 0;
+  const finalizadas = submissao.respostas?.filter(r => r.tipoConclusao === 'fiz' && r.dificuldadePercebida);
+  if (!finalizadas?.length) return 0;
+  const dPercebidaMedia = finalizadas.reduce((a, r) => a + r.dificuldadePercebida, 0) / finalizadas.length;
+  // D_esperada da lista = média das dificuldades esperadas do snapshot ou das questões
+  const questoes = (lista.questaoIds || []).map(qid => DB.questoes.porId(qid)).filter(Boolean);
+  const snapshot = lista.questoesSnapshot || [];
+  const dEsperada = snapshot.length
+    ? media(snapshot.map(s => s.dificuldadeEsperada || 0))
+    : media(questoes.map(q => q.dificuldadeEsperada || 0));
+  return +(dPercebidaMedia - dEsperada).toFixed(2);
+}
+
+export function mediaDeltaD(DB, submissoes, listasMap, n) {
+  const slice = janela(submissoes, n);
+  if (!slice.length) return 0;
+  const deltas = slice.map(s => {
+    const lista = listasMap[s.listaId] || DB.listas.porId(s.listaId);
+    return calcularDeltaDPercebida(DB, s, lista);
+  }).filter(v => v !== null);
+  return deltas.length ? +(media(deltas).toFixed(2)) : 0;
+}
+
+// Ritmo = média móvel atual - média móvel da janela anterior
+export function ritmoAprendizagem(submissoes, n) {
+  const ord = submissoesOrdenadas(submissoes);
+  if (ord.length < n * 2) return null;
+  const atual = mediaMovelAcertos(ord.slice(-n), n);
+  const anteriorSlice = ord.slice(-(n * 2), -n);
+  if (!anteriorSlice.length) return null;
+  const anterior = mediaMovelAcertos(anteriorSlice, n);
+  return atual - anterior;
+}
+
+// Regra de privacidade: turma só exibe comparativos com ≥ 5 estudantes concluintes
+export function turmaComparavel(listaId, turmaId, DB) {
+  const estudantes = DB.usuarios.porTurma(turmaId, 'estudante');
+  const concluintes = estudantes.filter(e => {
+    const sub = DB.submissoes.porEstudanteELista(e.id, listaId);
+    return sub?.status === 'concluida';
+  }).length;
+  return concluintes >= 5;
+}
+
 export function toast(msg, tipo = 'info') {
   const cores = { success: '#22c55e', error: '#ef4444', info: '#3b82f6', warning: '#f59e0b' };
   const el = document.createElement('div');

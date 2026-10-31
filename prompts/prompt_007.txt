@@ -1,0 +1,27 @@
+## 3. Resolução de Listas e Metacognição (Estudante)
+
+### 3.1 Regras de Fluxo e Interface
+
+1. Uma questão por vez, em ordem fixa. Navegação retroativa bloqueada (sem botão voltar; controle de estado via servidor).
+2. Ao abrir a questão, ativa-se um *cronômetro em tempo real*, visível ao estudante e auditado no servidor.
+3. Se a página for fechada, o progresso e o tempo continuam de onde pararam.
+4. Ao finalizar a última questão, a lista é encerrada definitivamente.
+
+### 3.2 Conclusão da Questão (Seleção Obrigatória)
+
+* *Opção A: "Fiz"* (Desenvolveu o raciocínio até o final e encontrou um resultado).
+* Status: O estudante marca *Acerto* ou *Erro* (autodeclarado).
+* Categoria do Erro (se errou): Escolha obrigatória entre: Falta de Teoria, Erro de Conta, Interpretação de Texto ou Falta de Atenção.
+* Dificuldade Percebida ($D_{\text{percebida}}$): Classificação obrigatória numa escala de *1 a 5* (1 = Muito Fácil, 5 = Muito Difícil).
+* Dashboard Pós-Resposta: Exibe o card: Seu Tempo vs. Tempo Médio da Turma para aquela questão.
+
+
+* *Opção B: "Não fiz"* (Não soube por onde começar/desenvolver e não obteve resultado).
+* Registro: Marcado automaticamente como lacuna conceitual não desenvolvida.
+* Dashboard Pós-Resposta: Exibe a tag fixa: *"Questão não finalizada"* (sem comparativo de tempo). O tempo desta questão é desconsiderado das médias operacionais.
+
+
+
+### 3.3 Tela de Resultado
+
+Revela o gabarito oficial ao lado das declarações do estudante (Fiz-Acertei, Fiz-Errei, Não Fiz) para autoavaliação. Inclui nota geral de percepção de dificuldade da lista.

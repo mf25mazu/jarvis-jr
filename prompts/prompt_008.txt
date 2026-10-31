@@ -1,0 +1,29 @@
+## 4. Análise por Janelas Acumuladas (3, 5 e 10 Listas) e Métrica $\Delta D$
+
+### 4.1 Janelas Acumuladas (Rolling Windows)
+
+Para evitar que uma nota pontual distorça o diagnóstico, o sistema calcula métricas nas seguintes janelas de tempo:
+
+1. *Últimas 3 Listas (Curto Prazo / Microtendência):* Detecta oscilações imediatas, quedas de engajamento ou aumento pontual de "Não Fiz".
+2. *Últimas 5 Listas (Médio Prazo / Consolidação de Bloco):* Avalia a absorção de tópicos e o impacto de intervenções pedagógicas recentes.
+3. *Últimas 10 Listas (Longo Prazo / Trajetória Histórica):* Mapeia o perfil estrutural do estudante/turma (ex: erros crônicos de "Interpretação de Texto").
+
+### 4.2 Métrica de Descompasso de Dificuldade ($\Delta D$ — Gap Analysis)
+
+O sistema calcula a divergência entre a expectativa do professor e a percepção real dos estudantes:
+
+$$\Delta D = \bar{D}_{\text{percebida (estudantes)}} - D_{\text{esperada (professor)}}$$
+
+* *$\Delta D > +1.5$ (Turma Abaixo do Nível Previsto):* A turma achou a atividade significativamente mais difícil do que o professor planejou. Indica lacuna conceitual de base ou problema de didática no tópico.
+* *$\Delta D < -1.5$ (Turma Acima do Nível Previsto):* A turma achou a atividade muito mais fácil do que o professor previu. Indica turma avançada / necessidade de atividades mais desafiadoras.
+* *$-1.5 \le \Delta D \le +1.5$ (Nível Calibrado):* A percepção dos alunos está alinhada com o planejamento do professor.
+
+### 4.3 Métricas Calculadas nas Janelas
+
+* *Média Móvel de Acertos ($\bar{X}_3, \bar{X}_5, \bar{X}_{10}$):* Estudante vs. Turma.
+* *Evolução dos Tipos de Erro:* Percentual comparativo de Teoria, Conta, Interpretação e Atenção ao longo do tempo.
+* *Taxa Acumulada de "Não Fiz":* Porcentagem de questões não finalizadas.
+* *Média do $\Delta D$ Acumulado:* Divergência histórica entre professor e turma/aluno.
+* *Ritmo de Aprendizagem ($\text{Ritmo} = \bar{X}_{\text{atual}} - \bar{X}_{\text{janela anterior}}$):* Indica se o estudante está acelerando ($\text{Ritmo} > 0$) ou desacelerando ($\text{Ritmo} < 0$) em relação à turma.
+
+Regra de Privacidade: Dados comparativos da turma só são exibidos quando houver no mínimo 5 estudantes com a lista finalizada.

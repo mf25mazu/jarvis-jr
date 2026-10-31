@@ -1,6 +1,10 @@
 // ai.js — Diagnóstico automático baseado em estatística local
 
-import { media, desvio, pct, mediasMoveis } from './utils.js';
+import {
+  media, desvio, pct, mediasMoveis,
+  mediaMovelAcertos, taxaNaoFiz, evolucaoTiposErro,
+  calcularDeltaDPercebida, mediaDeltaD, ritmoAprendizagem
+} from './utils.js';
 import { DB } from './db.js';
 
 /**
@@ -24,9 +28,16 @@ export function diagnosticarEstudante(estudanteId) {
       const q = DB.questoes.porId(r.questaoId);
       if (!q) return;
       const chave = `${q.disciplina} › ${q.topico}`;
-      if (!lacunasMapa[chave]) lacunasMapa[chave] = { acertos: 0, total: 0, disciplina: q.disciplina, topico: q.topico };
-      lacunasMapa[chave].total++;
-      if (r.correta) lacunasMapa[chave].acertos++;
+      if (!lacunasMapa[chave]) lacunasMapa[chave] = { acertos: 0, total: 0, erros: 0, naoFiz: 0, disciplina: q.disciplina, topico: q.topico };
+      // Apenas questões finalizadas entram na taxa de acerto; não-finalizadas são lacunas conceituais
+      if (r.naoFinalizada || r.tipoConclusao === 'nao_fiz') {
+        lacunasMapa[chave].naoFiz++;
+        lacunasMapa[chave].total++;
+      } else if (r.tipoConclusao === 'fiz') {
+        lacunasMapa[chave].total++;
+        if (r.statusAutodeclarado === 'acerto') lacunasMapa[chave].acertos++;
+        else lacunasMapa[chave].erros++;
+      }
     });
   });
 
@@ -60,6 +71,11 @@ export function diagnosticarEstudante(estudanteId) {
   const temposResposta = submissoes.flatMap(s => s.respostas?.map(r => r.tempoResposta) || []);
   const tempoMedio = media(temposResposta);
 
+  // ─── Janelas acumuladas ───────────────────────────────────────────────────
+  const listasMap = Object.fromEntries(submissoes.map(s => [s.listaId, DB.listas.porId(s.listaId)]));
+  const janelas = calcularJanelas(submissoes, listasMap);
+  const deltaDGeral = mediaDeltaD(DB, submissoes, listasMap, submissoes.length);
+
   return {
     pontuacoes,
     mediaGeral: Math.round(mediaGeral),
@@ -73,33 +89,59 @@ export function diagnosticarEstudante(estudanteId) {
     tempoMedio: Math.round(tempoMedio),
     totalSubmissoes: submissoes.length,
     submissoes,
+    janelas,
+    deltaDGeral,
   };
+}
+
+function calcularJanelas(submissoes, listasMap) {
+  const janelas = {};
+  [3, 5, 10].forEach(n => {
+    janelas[n] = {
+      mediaAcertos: mediaMovelAcertos(submissoes, n),
+      taxaNaoFiz: taxaNaoFiz(submissoes, n),
+      mediaDeltaD: mediaDeltaD(DB, submissoes, listasMap, n),
+      ritmo: ritmoAprendizagem(submissoes, n),
+      evolucaoErros: evolucaoTiposErro(submissoes, n),
+    };
+  });
+  return janelas;
 }
 
 function analisarMetacognicao(submissoes) {
   const pares = submissoes.flatMap(s =>
     (s.respostas || [])
-      .filter(r => r.confianca !== undefined)
-      .map(r => ({ confianca: r.confianca, correta: r.correta }))
+      .filter(r => r.tipoConclusao === 'fiz' && r.dificuldadePercebida !== undefined)
+      .map(r => {
+        const q = DB.questoes.porId(r.questaoId);
+        const acertou = r.statusAutodeclarado === 'acerto';
+        // Superestimou: achou fácil (D_percebida baixa) mas errou
+        // Subestimou: achou difícil (D_percebida alta) mas acertou
+        return {
+          acertou,
+          dificuldadePercebida: r.dificuldadePercebida,
+          superestimou: acertou === false && r.dificuldadePercebida <= 2,
+          subestimou: acertou === true && r.dificuldadePercebida >= 4,
+        };
+      })
   );
 
   if (!pares.length) return null;
 
-  const acertosConfiante = pares.filter(p => p.confianca >= 4 && p.correta).length;
-  const errosConfiante   = pares.filter(p => p.confianca >= 4 && !p.correta).length;
-  const acertosInseguro  = pares.filter(p => p.confianca <= 2 && p.correta).length;
-  const errosInseguro    = pares.filter(p => p.confianca <= 2 && !p.correta).length;
-  const totalConfiante   = acertosConfiante + errosConfiante;
-  const totalInseguro    = acertosInseguro + errosInseguro;
-
-  const taxaConfiante = totalConfiante ? pct(acertosConfiante, totalConfiante) : null;
-  const taxaInseguro  = totalInseguro  ? pct(acertosInseguro, totalInseguro)   : null;
+  const superestimacao = pares.filter(p => p.superestimou).length;
+  const subestimacao = pares.filter(p => p.subestimou).length;
+  const total = pares.length;
 
   let perfil = 'calibrado';
-  if (errosConfiante > acertosConfiante * 0.4) perfil = 'superestimacao'; // Dunning-Kruger
-  else if (acertosInseguro > errosInseguro * 1.5) perfil = 'subestimacao';
+  if (superestimacao > total * 0.2) perfil = 'superestimacao';
+  else if (subestimacao > total * 0.2) perfil = 'subestimacao';
 
-  return { taxaConfiante, taxaInseguro, perfil, acertosConfiante, errosConfiante, acertosInseguro, errosInseguro };
+  return {
+    perfil,
+    superestimacao,
+    subestimacao,
+    mediaDificuldadePercebida: Math.round(pares.reduce((a, p) => a + p.dificuldadePercebida, 0) / total),
+  };
 }
 
 function calcularRisco(media, lacunasCrit, volat, tendencia) {
@@ -182,6 +224,16 @@ export function diagnosticarTurma(turmaId) {
     .map(([chave, d]) => ({ chave, taxa: pct(d.acertos, d.total) }))
     .sort((a, b) => a.taxa - b.taxa);
 
+  // Submissões da turma para janelas acumuladas
+  const submissoesTurma = estudantes
+    .flatMap(e => DB.submissoes.porEstudante(e.id))
+    .filter(s => s.status === 'concluida');
+  const listasMapTurma = Object.fromEntries(
+    [...new Set(submissoesTurma.map(s => s.listaId))].map(id => [id, DB.listas.porId(id)])
+  );
+  const janelas = calcularJanelas(submissoesTurma, listasMapTurma);
+  const deltaDGeral = mediaDeltaD(DB, submissoesTurma, listasMapTurma, submissoesTurma.length);
+
   return {
     totalEstudantes: estudantes.length,
     comDados: dados.length,
@@ -192,6 +244,8 @@ export function diagnosticarTurma(turmaId) {
     riscoMedio: Math.round(media(riscos)),
     estudantesAltoRisco: dados.filter(d => d.diag.scoreRisco >= 60).length,
     topicosProblema: topicosOrdenados.slice(0, 5),
+    janelas,
+    deltaDGeral,
     dados,
   };
 }
