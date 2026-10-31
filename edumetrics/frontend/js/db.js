@@ -1,4 +1,5 @@
 // db.js — Camada de dados com LocalStorage
+import { hashSenha } from './utils.js';
 
 const PREFIX = 'edm_';
 
@@ -117,9 +118,9 @@ export const DB = {
 
   // SEED: dados de demonstração
   seed() {
-    if (get('seeded').length) return;
-    set('seeded', [1]);
+    if (get('seeded_v2').length) return;
 
+    set('seeded_v2', [1]);
     const { uuid } = window._edm_utils || {};
     const ids = {
       escola: 'escola-1',
@@ -148,12 +149,12 @@ export const DB = {
 
     // Usuários
     set('usuarios', [
-      { id: ids.escolaUser, tipo: 'escola', nome: 'Gestão Demo', email: 'escola@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [] },
-      { id: ids.prof1, tipo: 'professor', nome: 'Prof. Ana Lima', email: 'ana@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma1, ids.turma2] },
-      { id: ids.prof2, tipo: 'professor', nome: 'Prof. Bruno Melo', email: 'bruno@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma2] },
-      { id: ids.aluno1, tipo: 'estudante', nome: 'Maria Souza', email: 'maria@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma1] },
-      { id: ids.aluno2, tipo: 'estudante', nome: 'João Pedro', email: 'joao@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma1] },
-      { id: ids.aluno3, tipo: 'estudante', nome: 'Carla Ramos', email: 'carla@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma2] },
+      { id: ids.escolaUser, tipo: 'escola', nome: 'Gestão Demo', email: 'escola@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [] },
+      { id: ids.prof1, tipo: 'professor', nome: 'Prof. Ana Lima', email: 'ana@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [ids.turma1, ids.turma2] },
+      { id: ids.prof2, tipo: 'professor', nome: 'Prof. Bruno Melo', email: 'bruno@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [ids.turma2] },
+      { id: ids.aluno1, tipo: 'estudante', nome: 'Maria Souza', email: 'maria@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [ids.turma1] },
+      { id: ids.aluno2, tipo: 'estudante', nome: 'João Pedro', email: 'joao@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [ids.turma1] },
+      { id: ids.aluno3, tipo: 'estudante', nome: 'Carla Ramos', email: 'carla@demo.com', senha: hashSenha('123456'), escolaId: ids.escola, turmaIds: [ids.turma2] },
     ]);
 
     // Questões — schema v2: dificuldadeEsperada 1–5, tempoEsperado (s), gabaritoReferencia
