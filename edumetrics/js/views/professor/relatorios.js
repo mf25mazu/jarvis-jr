@@ -4,6 +4,7 @@ import { renderShell } from '../shared/shell.js';
 import { DB } from '../../db.js';
 import { Router } from '../../router.js';
 import { diagnosticarTurma } from '../../ai.js';
+import { recomendarProfessor } from '../../recomendacoes.js';
 import {
   formatarData, formatarTempo, pct, interpretarDeltaD,
   turmaComparavel, calcularDeltaDPercebida
@@ -23,6 +24,28 @@ function getNavItems(rota) {
     { icon: 'bar-chart-2', label: 'Relatórios por Turma', href: '/professor/relatorios', active: rota === '/professor/relatorios' },
     { icon: 'user', label: 'Relatório por Aluno', href: '/professor/relatorio-aluno', active: rota === '/professor/relatorio-aluno' },
   ];
+}
+
+function renderRecomendacoes(recs) {
+  if (!recs.length) return '';
+  const cores = { erro: '#fef2f2', bloqueio: '#fffbeb', dificuldade: '#f3e8ff' };
+  const bordas = { erro: '#ef4444', bloqueio: '#f59e0b', dificuldade: '#8b5cf6' };
+  return `
+    <div class="card" style="padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <i data-lucide="lightbulb" style="color:var(--primary);"></i>
+        <h3 style="font-size:1rem;margin:0;">Recomendações pedagógicas</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${recs.map(r => `
+          <div style="padding:14px;border-radius:10px;background:${cores[r.tipo] || '#f8fafc'};border-left:4px solid ${bordas[r.tipo] || '#64748b'};">
+            <div style="font-weight:600;font-size:.9rem;color:#1e293b;margin-bottom:4px;">${r.alerta}</div>
+            <div style="font-size:.85rem;color:var(--text-2);">${r.recomendacao}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function cardJanela(n, dados) {
@@ -149,6 +172,8 @@ export function renderProfessorRelatorios(container, usuario, params = {}) {
          </div>`
       : '';
 
+    const recsProfessor = turmaSelecionada ? recomendarProfessor(turmaSelecionada.id) : [];
+
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
         <div>
@@ -165,6 +190,8 @@ export function renderProfessorRelatorios(container, usuario, params = {}) {
           <strong>Dados comparativos ocultos:</strong> a regra de privacidade exige no mínimo 5 estudantes com a lista finalizada para exibir comparativos de turma.
         </div>
       ` : ''}
+
+      ${renderRecomendacoes(recsProfessor)}
 
       ${deltaDGeralHtml}
 

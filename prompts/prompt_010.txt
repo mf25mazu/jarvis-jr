@@ -1,0 +1,31 @@
+## 6. Motor de Recomendações Objetivas e Flexíveis (Baseado em Regras / Zero API)
+
+*Instrução de Implementação:* O sistema NÃO utilizará chamadas de API externas (sem LLM). Implemente uma lógica determinística via código (if/else ou switch/case) que analisa a causa prevalente de erro, a taxa de "Não Fiz", o tempo gasto e a métrica $\Delta D$, escolhendo automaticamente os cartões de recomendação pré-formatados:
+
+### A. Recomendações para o ESTUDANTE
+
+| Causa Prevalente / Comportamento | Alerta de Diagnóstico | Recomendação Prática de Ação |
+| --- | --- | --- |
+| *Falta de Teoria* | "Seu maior gargalo nesta matéria é a base conceitual." | Revise a teoria e os conceitos fundamentais do tópico antes de tentar novos exercícios. |
+| *Erro de Conta / Operacional* | "Seu raciocínio lógico está correto, mas ocorrem falhas na execução." | Você precisa de mais exercícios práticos focados na etapa de cálculo e desenvolvimento algébrico. |
+| *Interpretação de Texto* | "Você compreende a matéria, mas tem dificuldade em traduzir o enunciado." | Treine a leitura ativa: destaque os dados e identifique a pergunta central antes de começar a resolver. |
+| *Falta de Atenção* | "Você domina o conteúdo, mas comete deslizes por pressa." | Crie o hábito de conferir os dados finais, unidades e sinais antes de confirmar o envio da resposta. |
+| *Baixa Fluência (Tempo Alto + Acerto)* | "Você acertou, mas levou um tempo considerável para concluir." | Você compreendeu o conteúdo, mas precisa de mais prática no assunto para ganhar agilidade. |
+| *Bloqueio Inicial ("Não Fiz")* | "Identificada dificuldade em iniciar o raciocínio." | Busque exemplos de questões resolvidas passo a passo para entender a estrutura de partida do problema. |
+
+### B. Recomendações para o PROFESSOR
+
+| Padrão Prevalente na Turma | Alerta de Diagnóstico | Recomendação Pedagógica |
+| --- | --- | --- |
+| *Maioria dos erros em "Teoria"* | "Defasagem conceitual coletiva detectada no tópico." | Promover uma aula de nivelamento/revisão conceitual antes de avançar para conteúdos novos. |
+| *Maioria dos erros em "Conta"* | "A turma entendeu a lógica, mas peca na execução." | Aplicar treinos práticos de resolução acompanhada para reforçar a parte operacional. |
+| *Maioria dos erros em "Interpretação"* | "Dificuldade coletiva na modelagem do problema." | Fazer a leitura guiada e o mapeamento dos enunciados na lousa junto com a turma. |
+| *Alta taxa de "Não Fiz" (> 30%)* | "Bloqueio de entrada no conteúdo trabalhado." | O ponto de partida da matéria não ficou claro. Fornecer guias de resolução com o primeiro passo estruturado. |
+| *Divergência de Dificuldade ($\Delta D > +1.5$)* | "A turma achou o nível muito superior ao esperado." | Reduzir a complexidade dos problemas temporariamente para consolidar os fundamentos da matéria. |
+
+### C. Recomendações para a ESCOLA / ADMINISTRAÇÃO
+
+| Cenário Institucional | Alerta de Diagnóstico | Recomendação Gestora |
+| --- | --- | --- |
+| *Desaceleração de turma ($\text{Ritmo} < 0$) vs. outras do mesmo ano* | "Divergência de ritmo detectada entre turmas equivalentes." | Realizar alinhamento pedagógico entre os professores da série para equilibrar a cadência dos conteúdos. |
+| *Disciplina com alta ocorrência de "Teoria" ou "Não Fiz"* | "Vulnerabilidade institucional em disciplina específica." | Avaliar a necessidade de oficinas de apoio ou reforço pedagógico no contra-turno para essa matéria. |

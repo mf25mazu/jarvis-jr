@@ -5,6 +5,7 @@ import { DB } from '../../db.js';
 import { Router } from '../../router.js';
 import { Charts } from '../../charts.js';
 import { diagnosticarTurma } from '../../ai.js';
+import { recomendarEscola } from '../../recomendacoes.js';
 import { pct, media, labelCategoriaErro } from '../../utils.js';
 
 function getNavItems(rota) {
@@ -37,6 +38,28 @@ function calcularMetricasTurma(turmaId) {
     naoFiz: Math.round((submissoes.flatMap(s => s.respostas).filter(r => r.naoFinalizada).length /
       Math.max(1, submissoes.flatMap(s => s.respostas).length)) * 100),
   };
+}
+
+function renderRecomendacoes(recs) {
+  if (!recs.length) return '';
+  const cores = { ritmo: '#fffbeb', disciplina: '#f0f9ff' };
+  const bordas = { ritmo: '#f59e0b', disciplina: '#0ea5e9' };
+  return `
+    <div class="card" style="padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <i data-lucide="lightbulb" style="color:var(--primary);"></i>
+        <h3 style="font-size:1rem;margin:0;">Recomendações gestoras</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${recs.map(r => `
+          <div style="padding:14px;border-radius:10px;background:${cores[r.tipo] || '#f8fafc'};border-left:4px solid ${bordas[r.tipo] || '#64748b'};">
+            <div style="font-weight:600;font-size:.9rem;color:#1e293b;margin-bottom:4px;">${r.alerta}</div>
+            <div style="font-size:.85rem;color:var(--text-2);">${r.recomendacao}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function radarMultidisciplinar(turmas) {
@@ -109,6 +132,8 @@ export function renderEscolaDashboard(container, usuario) {
         <div class="stat-info"><div class="stat-value">${listasAtivas.length}</div><div class="stat-label">Listas Ativas</div></div>
       </div>
     </div>
+
+    ${renderRecomendacoes(recomendarEscola(escolaId))}
 
     <div class="grid-2" style="margin-bottom:24px;">
       <div class="card" style="padding:20px;">

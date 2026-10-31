@@ -4,6 +4,7 @@ import { renderShell } from '../shared/shell.js';
 import { DB } from '../../db.js';
 import { Router } from '../../router.js';
 import { diagnosticarEstudante } from '../../ai.js';
+import { recomendarEstudante } from '../../recomendacoes.js';
 import {
   formatarData, formatarTempo, stripHtml, labelCategoriaErro,
   calcularDeltaD, interpretarDeltaD
@@ -40,6 +41,32 @@ function cardJanela(n, dados) {
             ${ritmo === null ? '—' : (ritmo > 0 ? '+' : '') + ritmo + 'pp'}
           </div>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecomendacoes(recs) {
+  if (!recs.length) return '';
+  const cores = {
+    erro: '#fef2f2', bloqueio: '#fffbeb', fluencia: '#eff6ff', dificuldade: '#f3e8ff',
+  };
+  const bordas = {
+    erro: '#ef4444', bloqueio: '#f59e0b', fluencia: '#3b82f6', dificuldade: '#8b5cf6',
+  };
+  return `
+    <div class="card" style="padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <i data-lucide="lightbulb" style="color:var(--primary);"></i>
+        <h3 style="font-size:1rem;margin:0;">Recomendações para você</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${recs.map(r => `
+          <div style="padding:14px;border-radius:10px;background:${cores[r.tipo] || '#f8fafc'};border-left:4px solid ${bordas[r.tipo] || '#64748b'};">
+            <div style="font-weight:600;font-size:.9rem;color:#1e293b;margin-bottom:4px;">${r.alerta}</div>
+            <div style="font-size:.85rem;color:var(--text-2);">${r.recomendacao}</div>
+          </div>
+        `).join('')}
       </div>
     </div>
   `;
@@ -170,9 +197,11 @@ export function renderEstudanteRelatorio(container, usuario, params = {}) {
       <button class="btn btn-outline" id="btnVoltarListas">Voltar às listas</button>
     </div>
 
-    ${deltaDGeralHtml}
+      ${deltaDGeralHtml}
 
-    <h3 style="font-size:1rem;margin-bottom:12px;">Análise por janelas acumuladas</h3>
+      ${renderRecomendacoes(recomendarEstudante(usuario.id))}
+
+      <h3 style="font-size:1rem;margin-bottom:12px;">Análise por janelas acumuladas</h3>
     ${janelasHtml}
 
     <div class="stats-grid" style="margin-bottom:24px;margin-top:24px;">

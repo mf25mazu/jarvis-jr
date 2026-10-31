@@ -5,6 +5,7 @@ import { Router } from '../../router.js';
 import { renderShell } from '../shared/shell.js';
 import { Charts } from '../../charts.js';
 import { diagnosticarEstudante } from '../../ai.js';
+import { recomendarEstudante } from '../../recomendacoes.js';
 import {
   formatarData, formatarTempo, stripHtml, pct, media, desvio,
   labelCategoriaErro, turmaComparavel, ritmoAprendizagem
@@ -125,6 +126,38 @@ function ultimaRespostaInfo(sub) {
   return { resposta: ultima, questao };
 }
 
+function renderRecomendacoes(recs) {
+  if (!recs.length) return '';
+  const cores = {
+    erro: '#fef2f2',
+    bloqueio: '#fffbeb',
+    fluencia: '#eff6ff',
+    dificuldade: '#f3e8ff',
+  };
+  const bordas = {
+    erro: '#ef4444',
+    bloqueio: '#f59e0b',
+    fluencia: '#3b82f6',
+    dificuldade: '#8b5cf6',
+  };
+  return `
+    <div class="card" style="padding:20px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <i data-lucide="lightbulb" style="color:var(--primary);"></i>
+        <h3 style="font-size:1rem;margin:0;">Recomendações para você</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${recs.map(r => `
+          <div style="padding:14px;border-radius:10px;background:${cores[r.tipo] || '#f8fafc'};border-left:4px solid ${bordas[r.tipo] || '#64748b'};">
+            <div style="font-weight:600;font-size:.9rem;color:#1e293b;margin-bottom:4px;">${r.alerta}</div>
+            <div style="font-size:.85rem;color:var(--text-2);">${r.recomendacao}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function renderCardUltimaResposta(info) {
   if (!info) return '';
   const { resposta, questao } = info;
@@ -230,6 +263,8 @@ export function renderEstudanteDashboard(container, usuario) {
       </div>
 
       ${renderCardUltimaResposta(ultimaInfo)}
+
+      ${renderRecomendacoes(recomendarEstudante(usuario.id, janelaAtual))}
 
       <div class="grid-2" style="margin-bottom:24px;">
         <div class="card" style="padding:20px;">
