@@ -6,15 +6,15 @@ Sistema de métricas educacionais com foco em janelas acumuladas, análise de er
 
 ```
 edumetrics/
-├── backend/          # API REST (Node.js + Express + SQLite)
+├── backend/          # API REST + servidor estático (Node.js + Express + SQLite)
 │   ├── src/
 │   │   ├── migrations.js      # Schema do banco SQLite
 │   │   ├── seed.js            # Dados de exemplo
-│   │   ├── server.js          # Ponto de entrada
+│   │   ├── server.js          # Ponto de entrada único
 │   │   ├── routes/            # Rotas da API
 │   │   ├── models/            # Acesso ao banco
 │   │   └── middleware/        # Autenticação e RBAC
-│   ├── data/                  # Banco SQLite
+│   ├── data/                  # Banco SQLite (não versionado)
 │   └── package.json
 ├── frontend/         # SPA HTML/CSS/JS puro
 │   ├── index.html
@@ -34,15 +34,15 @@ edumetrics/
 - [Node.js](https://nodejs.org/) 18+ (com npm)
 - Navegador moderno
 
-## Instalação
+## Instalação local
 
-### 1. Clonar / acessar o projeto
+### 1. Acessar o backend
 
 ```bash
 cd edumetrics/backend
 ```
 
-### 2. Instalar dependências do backend
+### 2. Instalar dependências
 
 ```bash
 npm install
@@ -84,6 +84,63 @@ O backend ficará disponível em `http://localhost:3000` e servirá o frontend a
 
 > **Nota:** O painel de escola (`SCHOOL`) não tem seed de usuário próprio. Em produção, crie um usuário com `role = 'SCHOOL'`.
 
+## Deploy (Railway / Render / um único serviço Node)
+
+O projeto é preparado para rodar como **um único serviço Node.js** que serve tanto a API REST quanto o frontend estático. O banco SQLite deve estar em um **volume persistente** (Railway Volume / Render Disk).
+
+### Variáveis de ambiente obrigatórias
+
+| Variável | Descrição | Exemplo |
+| --- | --- | --- |
+| `NODE_ENV` | Ambiente de execução | `production` |
+| `JWT_SECRET` | Chave secreta para assinar tokens. **Obrigatória em produção.** | `uma-chave-muito-secreta-e-longa` |
+| `PORT` | Porta da aplicação | `3000` |
+| `DB_PATH` | Caminho absoluto do SQLite no volume persistente | `/data/edumetrics.db` |
+
+### Configuração de plataformas
+
+**Railway**
+- Build command: `cd backend && npm install`
+- Start command: `cd backend && npm start`
+- Volume: monte um volume em `/data` e defina `DB_PATH=/data/edumetrics.db`
+
+**Render**
+- Build command: `cd backend && npm install`
+- Start command: `cd backend && npm start`
+- Disk: crie um Disk, monte em `/data` e defina `DB_PATH=/data/edumetrics.db`
+
+### Seed em produção
+
+Após o primeiro deploy, execute o seed para popular o banco. Na maioria das plataformas, isso é feito via console/SSH ou job one-off:
+
+```bash
+cd backend
+node src/seed.js
+```
+
+> Atenção: o seed apaga todos os dados antes de inserir os novos. Rode apenas uma vez no ambiente de produção.
+
+### Health check
+
+A rota `GET /health` pode ser usada para health checks:
+
+```bash
+curl https://seudominio.com/health
+```
+
+Resposta esperada:
+
+```json
+{ "status": "ok", "env": "production", "timestamp": "..." }
+```
+
+### Segurança no deploy
+
+- `JWT_SECRET` é obrigatório em produção; o servidor falha ao iniciar se não estiver definido.
+- CORS foi removido: frontend e API compartilham a mesma origem.
+- Senhas são hashadas com `bcrypt` (custo 10).
+- O SQLite fica fora do versionamento (`.gitignore`); em produção, ele reside em volume persistente.
+
 ## Modo offline (frontend standalone)
 
 Caso prefira executar apenas o frontend sem backend, abra o `frontend/index.html` diretamente no navegador ou sirva com um servidor estático qualquer. O sistema usará o LocalStorage como banco de dados. A autenticação do backend será tentada primeiro; se falhar, o login cai no modo LocalStorage.
@@ -98,6 +155,7 @@ python3 -m http.server 8080
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
+| GET | `/health` | Health check |
 | POST | `/api/auth/login` | Login (retorna JWT) |
 | GET | `/api/escola/dashboard` | Dashboard da escola |
 | GET | `/api/escola/comparativo` | Comparativo inter-turmas |
@@ -119,7 +177,7 @@ O mapeamento entre as entidades do frontend e as tabelas SQL está documentado e
 ## Scripts úteis
 
 ```bash
-# Resetar banco e popular novamente
+# Resetar banco e popular novamente (local)
 npm run reset
 
 # Apenas popular (mantém banco existente)
@@ -131,6 +189,7 @@ npm run dev
 
 ## Segurança
 
-- Em produção, defina a variável `JWT_SECRET` com um valor seguro.
-- O hash de senha no seed usa SHA-256 apenas para desenvolvimento. Substitua por `bcrypt` ou `argon2` em produção.
+- Senhas são hashadas com `bcrypt`.
 - Todas as queries SQL usam prepared statements para evitar injeção.
+- `JWT_SECRET` é obrigatório em produção.
+- O banco SQLite nunca deve ser commitado (`.gitignore`).

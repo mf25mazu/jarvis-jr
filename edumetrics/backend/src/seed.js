@@ -2,7 +2,7 @@
 import { migrate } from './migrations.js';
 import { db } from './models/db.js';
 import { uuid, now, queries, get, all } from './models/index.js';
-import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 const SCHOOL = { id: uuid(), name: 'Escola Modelo EduMetrics' };
 const GRADE_YEAR = { id: uuid(), name: '9º Ano', level: 9 };
@@ -63,7 +63,7 @@ const QUESTIONS_LP = [
 const ERROR_CATEGORIES = ['TEORIA', 'CONTA', 'INTERPRETACAO', 'ATENCAO'];
 
 function hash(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return bcrypt.hashSync(password, 10);
 }
 
 function randomInt(min, max) {

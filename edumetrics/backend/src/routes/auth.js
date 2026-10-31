@@ -1,23 +1,26 @@
 // routes/auth.js — Autenticação simples via JWT
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import { queries, get } from '../models/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'edumetrics-dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 const router = Router();
 
-function hash(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+async function compare(password, hash) {
+  return bcrypt.compare(password, hash);
 }
 
 router.post('/login', async (req, res) => {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: 'JWT_SECRET não configurado no servidor.' });
+  }
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
   }
   const user = await queries.users.byEmail(email);
-  if (!user || user.password_hash !== hash(password)) {
+  if (!user || !(await compare(password, user.password_hash))) {
     return res.status(401).json({ error: 'Credenciais inválidas.' });
   }
   const token = jwt.sign({ id: user.id, role: user.role, schoolId: user.school_id }, JWT_SECRET, { expiresIn: '8h' });

@@ -11,12 +11,11 @@
     "reset": "rm -f data/edumetrics.db && node src/seed.js && node src/server.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
+    "bcrypt": "^5.1.1",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "sqlite3": "^5.1.7"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=18"
   }

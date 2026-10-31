@@ -1,0 +1,29 @@
+# Dependencies
+backend/node_modules/
+frontend/node_modules/
+node_modules/
+
+# Build outputs
+*.log
+*.log.*
+.DS_Store
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+backend/data/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+
+# SQLite WAL files (extra safety)
+**/*.db-journal
