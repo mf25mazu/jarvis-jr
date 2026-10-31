@@ -72,6 +72,40 @@ export function labelDificuldade(d) {
   return { facil: 'Fácil', medio: 'Médio', dificil: 'Difícil' }[d] || d;
 }
 
+// Escala 1–5 de dificuldade esperada (D_esperada)
+const DIFICULDADE_CORES = ['#22c55e', '#4ade80', '#f59e0b', '#f97316', '#ef4444'];
+const DIFICULDADE_ROTULOS = ['1 — Muito Fácil', '2 — Fácil', '3 — Médio', '4 — Difícil', '5 — Muito Difícil'];
+
+export function corDificuldadeEsperada(d) {
+  return DIFICULDADE_CORES[Math.max(1, Math.min(5, d || 3)) - 1] || '#64748b';
+}
+
+export function labelDificuldadeEsperada(d) {
+  return DIFICULDADE_ROTULOS[Math.max(1, Math.min(5, d || 3)) - 1] || d;
+}
+
+export function calcularDeltaD(dEsperada, taxaAcerto) {
+  // D_observada: mapeia taxa de acerto (0–100) para escala 1–5
+  // 100% -> 1, 0% -> 5 (quanto menor a taxa, mais difícil a questão foi para os alunos)
+  const dObservada = 5 - (taxaAcerto / 100) * 4;
+  return +(dObservada - dEsperada).toFixed(2);
+}
+
+export function interpretarDeltaD(delta) {
+  if (delta <= -1.5) return { label: 'Mais fácil que o esperado', cor: '#22c55e' };
+  if (delta <= -0.5) return { label: 'Ligeiramente mais fácil', cor: '#4ade80' };
+  if (delta < 0.5)   return { label: 'Alinhada à expectativa', cor: '#64748b' };
+  if (delta < 1.5)   return { label: 'Ligeiramente mais difícil', cor: '#f59e0b' };
+  return { label: 'Mais difícil que o esperado', cor: '#ef4444' };
+}
+
+export function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
 export function toast(msg, tipo = 'info') {
   const cores = { success: '#22c55e', error: '#ef4444', info: '#3b82f6', warning: '#f59e0b' };
   const el = document.createElement('div');
@@ -112,6 +146,35 @@ export function confirm2(msg) {
 export function sanitize(str) {
   const div = document.createElement('div');
   div.textContent = str;
+  return div.innerHTML;
+}
+
+export function sanitizeHtml(html) {
+  if (!html) return '';
+  const allowed = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ol', 'ul', 'li', 'sub', 'sup'];
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  // Remove todos os atributos e tags não permitidas
+  const walker = document.createTreeWalker(div, NodeFilter.SHOW_ELEMENT);
+  const toRemove = [];
+  let el;
+  while ((el = walker.nextNode())) {
+    const tag = el.tagName.toLowerCase();
+    if (!allowed.includes(tag)) {
+      toRemove.push(el);
+      continue;
+    }
+    // remove atributos, exceto os essenciais de sub/sup
+    const keepAttr = (tag === 'sub' || tag === 'sup') ? [] : [];
+    [...el.attributes].forEach(a => {
+      if (!keepAttr.includes(a.name)) el.removeAttribute(a.name);
+    });
+  }
+  toRemove.forEach(el => {
+    const frag = document.createDocumentFragment();
+    while (el.firstChild) frag.appendChild(el.firstChild);
+    el.parentNode.replaceChild(frag, el);
+  });
   return div.innerHTML;
 }
 

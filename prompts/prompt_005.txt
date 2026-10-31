@@ -1,0 +1,15 @@
+﻿Criar os 10 arquivos de views para os perfis PROFESSOR e ESTUDANTE da plataforma EduMetrics.
+
+PROFESSOR:
+1. js/views/professor/dashboard.js - renderProfessorDashboard(container, usuario)
+2. js/views/professor/turmas.js - renderProfessorTurmas(container, usuario)
+3. js/views/professor/questoes.js - renderProfessorQuestoes(container, usuario) - CRUD questoes
+4. js/views/professor/listas.js - renderProfessorListas(container, usuario) - CRUD listas
+5. js/views/professor/relatorios.js - renderProfessorRelatorios(container, usuario) - diagnosticarTurma com link por aluno
+6. js/views/professor/relatorio-aluno.js - renderProfessorRelatorioAluno(container, usuario) - select turma+aluno, relatorio individual completo com 4 graficos
+
+ESTUDANTE:
+7. js/views/estudante/dashboard.js - renderEstudanteDashboard(container, usuario)
+8. js/views/estudante/listas.js - renderEstudanteListas(container, usuario)
+9. js/views/estudante/responder.js - renderEstudanteResponder(container, usuario, params) - quiz completo com timer, metacognicao, gabarito pos-conclusao
+10. js/views/estudante/relatorio.js - renderEstudanteRelatorio(container, usuario) - relatorio diagnostico completo com graficos

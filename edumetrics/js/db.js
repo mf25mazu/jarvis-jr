@@ -71,6 +71,8 @@ export const DB = {
       set('questoes', [...lista, q]);
     },
     remover: id => set('questoes', get('questoes').filter(q => q.id !== id)),
+    disciplinasPorEscola: escolaId =>
+      [...new Set(get('questoes').filter(q => q.escolaId === escolaId).map(q => q.disciplina).filter(Boolean))].sort(),
   },
 
   // LISTAS
@@ -119,7 +121,6 @@ export const DB = {
     set('seeded', [1]);
 
     const { uuid } = window._edm_utils || {};
-    // Importação dinâmica não funciona aqui; usamos valores estáticos
     const ids = {
       escola: 'escola-1',
       escolaUser: 'user-escola-1',
@@ -155,12 +156,21 @@ export const DB = {
       { id: ids.aluno3, tipo: 'estudante', nome: 'Carla Ramos', email: 'carla@demo.com', senha: '-1680838627', escolaId: ids.escola, turmaIds: [ids.turma2] },
     ]);
 
-    // Questões
+    // Questões — schema v2: dificuldadeEsperada 1–5, tempoEsperado (s), gabaritoReferencia
     set('questoes', [
       {
-        id: ids.q1, enunciado: 'Qual é o resultado de 2² + 3²?', disciplina: 'Matemática',
-        topico: 'Potenciação', subtopico: 'Quadrado perfeito', dificuldade: 'facil',
-        tipo: 'multipla_escolha', escolaId: ids.escola, criadoPorId: ids.prof1,
+        id: ids.q1,
+        enunciado: '<p>Qual é o resultado de <strong>2² + 3²</strong>?</p>',
+        imagem: null,
+        disciplina: 'Matemática',
+        topico: 'Potenciação',
+        dificuldadeEsperada: 1,
+        tempoEsperado: 60,
+        gabaritoReferencia: '13',
+        tipo: 'multipla_escolha',
+        escolaId: ids.escola,
+        criadoPorId: ids.prof1,
+        criadoEm: Date.now() - 86400000 * 5,
         alternativas: [
           { id: 'a', texto: '10', correta: false },
           { id: 'b', texto: '13', correta: true },
@@ -169,18 +179,36 @@ export const DB = {
         ]
       },
       {
-        id: ids.q2, enunciado: 'A célula é a unidade básica da vida. Afirmação:', disciplina: 'Biologia',
-        topico: 'Citologia', subtopico: 'Célula', dificuldade: 'facil',
-        tipo: 'verdadeiro_falso', escolaId: ids.escola, criadoPorId: ids.prof1,
+        id: ids.q2,
+        enunciado: '<p>A célula é a unidade básica da vida. Classifique a afirmação:</p>',
+        imagem: null,
+        disciplina: 'Biologia',
+        topico: 'Citologia',
+        dificuldadeEsperada: 1,
+        tempoEsperado: 45,
+        gabaritoReferencia: 'Verdadeiro',
+        tipo: 'multipla_escolha',
+        escolaId: ids.escola,
+        criadoPorId: ids.prof1,
+        criadoEm: Date.now() - 86400000 * 4,
         alternativas: [
-          { id: 'v', texto: 'Verdadeiro', correta: true },
-          { id: 'f', texto: 'Falso', correta: false },
+          { id: 'a', texto: 'Verdadeiro', correta: true },
+          { id: 'b', texto: 'Falso', correta: false },
         ]
       },
       {
-        id: ids.q3, enunciado: 'Qual é a fórmula química da água?', disciplina: 'Química',
-        topico: 'Substâncias', subtopico: 'Fórmulas', dificuldade: 'facil',
-        tipo: 'multipla_escolha', escolaId: ids.escola, criadoPorId: ids.prof2,
+        id: ids.q3,
+        enunciado: '<p>Qual é a fórmula química da água?</p>',
+        imagem: null,
+        disciplina: 'Química',
+        topico: 'Substâncias',
+        dificuldadeEsperada: 1,
+        tempoEsperado: 40,
+        gabaritoReferencia: 'H₂O',
+        tipo: 'multipla_escolha',
+        escolaId: ids.escola,
+        criadoPorId: ids.prof2,
+        criadoEm: Date.now() - 86400000 * 3,
         alternativas: [
           { id: 'a', texto: 'H₂O', correta: true },
           { id: 'b', texto: 'CO₂', correta: false },
@@ -189,9 +217,18 @@ export const DB = {
         ]
       },
       {
-        id: ids.q4, enunciado: 'Se x + 5 = 12, qual é o valor de x?', disciplina: 'Matemática',
-        topico: 'Álgebra', subtopico: 'Equações do 1º grau', dificuldade: 'medio',
-        tipo: 'multipla_escolha', escolaId: ids.escola, criadoPorId: ids.prof1,
+        id: ids.q4,
+        enunciado: '<p>Se <strong>x + 5 = 12</strong>, qual é o valor de <em>x</em>?</p>',
+        imagem: null,
+        disciplina: 'Matemática',
+        topico: 'Álgebra',
+        dificuldadeEsperada: 3,
+        tempoEsperado: 90,
+        gabaritoReferencia: '7',
+        tipo: 'multipla_escolha',
+        escolaId: ids.escola,
+        criadoPorId: ids.prof1,
+        criadoEm: Date.now() - 86400000 * 2,
         alternativas: [
           { id: 'a', texto: '5', correta: false },
           { id: 'b', texto: '6', correta: false },
@@ -200,20 +237,35 @@ export const DB = {
         ]
       },
       {
-        id: ids.q5, enunciado: 'Explique brevemente o que é fotossíntese.', disciplina: 'Biologia',
-        topico: 'Fisiologia Vegetal', subtopico: 'Fotossíntese', dificuldade: 'medio',
-        tipo: 'dissertativa', escolaId: ids.escola, criadoPorId: ids.prof2,
+        id: ids.q5,
+        enunciado: '<p>Explique brevemente o que é fotossíntese e cite seus reagentes principais.</p>',
+        imagem: null,
+        disciplina: 'Biologia',
+        topico: 'Fisiologia Vegetal',
+        dificuldadeEsperada: 4,
+        tempoEsperado: 300,
+        gabaritoReferencia: 'Processo pelo qual plantas convertem luz, água e CO₂ em glicose e oxigênio.',
+        tipo: 'discursiva',
+        escolaId: ids.escola,
+        criadoPorId: ids.prof2,
+        criadoEm: Date.now() - 86400000 * 1,
         alternativas: []
       },
     ]);
 
-    // Lista
+    // Lista com snapshot de dificuldade esperada (imutabilidade)
+    const questoesLista = [ids.q1, ids.q2, ids.q3, ids.q4];
     set('listas', [{
       id: ids.lista1, titulo: 'Lista Diagnóstica — Outubro', descricao: 'Avaliação inicial do bimestre.',
-      questaoIds: [ids.q1, ids.q2, ids.q3, ids.q4], turmaIds: [ids.turma1, ids.turma2],
+      questaoIds: questoesLista,
+      questoesSnapshot: questoesLista.map(qid => {
+        const q = get('questoes').find(x => x.id === qid);
+        return { questaoId: qid, dificuldadeEsperada: q?.dificuldadeEsperada || 0 };
+      }),
+      turmaIds: [ids.turma1, ids.turma2],
       escolaId: ids.escola, criadoPorId: ids.prof1,
-      dataInicio: Date.now() - 86400000 * 2,
-      dataFim: Date.now() + 86400000 * 5,
+      dataInicio: new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 16),
+      dataFim: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 16),
       tempoLimite: 30, status: 'publicada',
     }]);
 
@@ -232,19 +284,19 @@ export const DB = {
     set('submissoes', [
       sub('sub-1', ids.aluno1, [
         { questaoId: ids.q1, resposta: 'b', correta: true, tempoResposta: 45, confianca: 4 },
-        { questaoId: ids.q2, resposta: 'v', correta: true, tempoResposta: 20, confianca: 5 },
+        { questaoId: ids.q2, resposta: 'a', correta: true, tempoResposta: 20, confianca: 5 },
         { questaoId: ids.q3, resposta: 'a', correta: true, tempoResposta: 15, confianca: 5 },
         { questaoId: ids.q4, resposta: 'b', correta: false, tempoResposta: 120, confianca: 3 },
       ]),
       sub('sub-2', ids.aluno2, [
         { questaoId: ids.q1, resposta: 'c', correta: false, tempoResposta: 90, confianca: 2 },
-        { questaoId: ids.q2, resposta: 'v', correta: true, tempoResposta: 10, confianca: 5 },
+        { questaoId: ids.q2, resposta: 'a', correta: true, tempoResposta: 10, confianca: 5 },
         { questaoId: ids.q3, resposta: 'b', correta: false, tempoResposta: 60, confianca: 3 },
         { questaoId: ids.q4, resposta: 'c', correta: true, tempoResposta: 75, confianca: 4 },
       ]),
       sub('sub-3', ids.aluno3, [
         { questaoId: ids.q1, resposta: 'b', correta: true, tempoResposta: 30, confianca: 5 },
-        { questaoId: ids.q2, resposta: 'f', correta: false, tempoResposta: 25, confianca: 2 },
+        { questaoId: ids.q2, resposta: 'b', correta: false, tempoResposta: 25, confianca: 2 },
         { questaoId: ids.q3, resposta: 'a', correta: true, tempoResposta: 20, confianca: 5 },
         { questaoId: ids.q4, resposta: 'c', correta: true, tempoResposta: 50, confianca: 4 },
       ]),

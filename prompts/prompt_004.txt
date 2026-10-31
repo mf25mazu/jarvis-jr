@@ -1,0 +1,15 @@
+Create 4 JavaScript ESModule view files for the EduMetrics platform at C:\Users\gigac\jarvis-jr\edumetrics\js\views\estudante\.
+
+The project uses:
+- DB from ../../db.js (DB.usuarios, DB.escolas, DB.turmas, DB.questoes, DB.listas, DB.submissoes)
+- utils from ../../utils.js (uuid, hashSenha, formatarData, formatarDataHora, formatarTempo, pct, media, toast, confirm2, sanitize)
+- Charts from ../../charts.js (Charts.linha, .barra, .rosca, .radar, .scatter, .destroyAll)
+- AI from ../../ai.js (diagnosticarEstudante, diagnosticarTurma)
+- Auth from ../../auth.js (Auth.sessao, Auth.pode)
+- Router from ../../router.js (Router.navigate)
+- renderShell from ../shared/shell.js
+
+FILE 7: dashboard.js - renderEstudanteDashboard
+FILE 8: listas.js - renderEstudanteListas
+FILE 9: responder.js - renderEstudanteResponder (full-screen exam mode)
+FILE 10: relatorio.js - renderEstudanteRelatorio (full diagnostic report with charts)

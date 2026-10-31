@@ -1,0 +1,12 @@
+*Papel da IA:* Você atuará como Desenvolvedor Full-Stack Sênior e Designer de UX/UI Educacional. Sua missão é criar a arquitetura, o código, os níveis de acesso e a interface de uma plataforma web completa, funcional e responsiva, em português do Brasil, baseada em metacognição, gestão de tempo por questão, estatística de lacunas de aprendizado, análise de janelas acumuladas de desempenho e um motor de recomendações pedagógicas objetivas baseadas em regras determinísticas. ## 2. Banco de Questões (Escola e Professor)
+
+Aba "Banco de Questões" com formulário contendo:
+
+* *Enunciado:* Texto rico (com suporte opcional a imagem).
+* *Matéria / Tópico:* Seleção de disciplina existente ou criação de nova.
+* *Dificuldade Esperada ($D_{\text{esperada}}$):* Classificação obrigatória pelo autor numa escala de *1 a 5* (1 = Muito Fácil, 5 = Muito Difícil).
+* *Gabarito de Referência:* Resposta correta de apoio.
+* *Tempo Esperado de Resolução:* Registrado em segundos.
+* *Tipo de Questão:* Múltipla escolha (A–E) ou resposta curta/discursiva.
+
+*Regra de Imutabilidade:* A dificuldade esperada original ($D_{\text{esperada}}$) deve ser preservada imutável após a lista ser atribuída, servindo de parâmetro fixo para o cálculo do $\Delta D$.
